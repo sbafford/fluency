@@ -379,12 +379,14 @@ export interface Attempt {
 
 export interface ProgressState {
   languageId: string
+  /** The device this copy of progress lives on. Daily logs are kept per device so syncing never double-counts. */
+  device: string
   items: Record<string, ItemProgress>
   lessons: Record<string, LessonProgress>
   listening: Record<string, ActivityProgress>
   conversations: Record<string, ActivityProgress>
-  /** Keyed by local date, YYYY-MM-DD. */
-  days: Record<string, DayLog>
+  /** Daily activity, keyed by device id and then by local date (YYYY-MM-DD). Read through `dayLog()`. */
+  days: Record<string, Record<string, DayLog>>
   /** Most recent attempts, newest last, capped. */
   recent: Attempt[]
 }
@@ -401,10 +403,15 @@ export interface Settings {
   voiceB?: string
   /** Show translations under target-language lines by default. */
   showTranslations: boolean
+  /** Id of the private GitHub gist used for sync, once set up. The access token is stored separately and never exported. */
+  syncGistId?: string
+  lastSyncedAt?: number
 }
 
 export interface AppData {
-  version: 1
+  version: 2
+  /** Random id for this browser, used to keep per-device daily logs apart. */
+  deviceId: string
   activeLanguage: string
   settings: Settings
   progress: Record<string, ProgressState>

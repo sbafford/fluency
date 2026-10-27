@@ -17,8 +17,10 @@ function memoryStorage(): Storage {
 }
 
 describe('storage', () => {
-  it('returns defaults when nothing is stored', () => {
-    expect(load(memoryStorage())).toEqual(defaultData())
+  it('returns defaults with a fresh device id when nothing is stored', () => {
+    const data = load(memoryStorage())
+    expect(data.deviceId).toMatch(/^\w{6,}$/)
+    expect(data).toEqual(defaultData('fr', data.deviceId))
   })
 
   it('round-trips through save and load', () => {
@@ -39,7 +41,8 @@ describe('storage', () => {
   it('keeps an unreadable copy instead of overwriting it', () => {
     const s = memoryStorage()
     s.setItem(STORAGE_KEY, '{not json')
-    expect(load(s)).toEqual(defaultData())
+    const data = load(s)
+    expect(data).toEqual(defaultData('fr', data.deviceId))
     expect(s.length).toBe(2)
   })
 
@@ -50,6 +53,26 @@ describe('storage', () => {
 
   it('rejects backups from a newer version', () => {
     expect(() => migrate({ version: 99, progress: {} })).toThrow(/newer version/)
+  })
+
+  it('upgrades version 1 data, attributing daily logs to this device', () => {
+    const v1 = {
+      version: 1,
+      activeLanguage: 'fr',
+      settings: { learnerName: 'Sav' },
+      progress: { fr: { items: {}, lessons: {}, listening: {}, conversations: {}, recent: [], days: { '2026-10-27': { answered: 5, correct: 4, lessons: 1, reviews: 0, activeMs: 1000 } } } },
+    }
+    const data = migrate(v1)
+    expect(data.version).toBe(2)
+    expect(data.progress.fr.device).toBe(data.deviceId)
+    expect(data.progress.fr.days[data.deviceId]['2026-10-27'].answered).toBe(5)
+  })
+
+  it('keeps this device id when importing a backup from another device', () => {
+    const other = defaultData('fr', 'other')
+    const imported = importData(exportData(other), 'mine')
+    expect(imported.deviceId).toBe('mine')
+    expect(imported.progress.fr.device).toBe('mine')
   })
 
   it('fills in missing settings and progress fields', () => {

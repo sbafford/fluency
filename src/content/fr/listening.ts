@@ -1,7 +1,9 @@
 import type { ListeningPiece } from '../../engine/types'
 import { unit1Items } from './unit1'
+import { unit2Items } from './unit2'
 
 const { g, n, o, c } = unit1Items
+const { t, d, h, w } = unit2Items
 
 /*
  * Listening practice. Each piece stretches slightly beyond the lesson
@@ -84,5 +86,51 @@ export const listening: ListeningPiece[] = [
       { id: 'q4', question: 'How does Sam say "nice to meet you"? Type it in French.', answers: ['enchanté'], answerLang: 'target' },
     ],
     itemIds: [g.salut.id, g.cava.id, g.ettoi.id, n.enchante.id, o.anglais.id, o.etudiant.id],
+  },
+  {
+    id: 'fr.u2.listen.station',
+    unitId: 'fr.u2',
+    level: 'A1',
+    title: 'Annonce en gare',
+    kind: 'announcement',
+    setting: 'Announcements on the platform at Lyon Part-Dieu station.',
+    speakers: { annonce: { name: 'Annonce', voice: 'a' } },
+    lines: [
+      { speaker: 'annonce', target: 'Mesdames et messieurs, bonjour.', native: 'Good morning, ladies and gentlemen.' },
+      { speaker: 'annonce', target: 'Le train pour Genève partira à dix heures quarante-cinq, voie sept.', native: 'The train to Geneva will leave at 10:45, platform seven.' },
+      { speaker: 'annonce', target: 'Le train pour Paris partira à onze heures quinze, voie douze.', native: 'The train to Paris will leave at 11:15, platform twelve.' },
+      { speaker: 'annonce', target: 'Merci, et bon voyage.', native: 'Thank you, and have a good journey.' },
+    ],
+    questions: [
+      { id: 'q1', question: 'When does the train to Geneva leave?', options: ['10:45', '11:15', '10:15', '11:45'], answers: ['10:45'] },
+      { id: 'q2', question: 'Which platform is the Geneva train on?', options: ['7', '12', '17', '2'], answers: ['7'] },
+      { id: 'q3', question: 'Where is the 11:15 train going?', options: ['Paris', 'Geneva', 'Lyon', 'Zurich'], answers: ['Paris'] },
+      { id: 'q4', question: 'Which platform is the Paris train on? Type the number.', answers: ['12', 'twelve', 'douze'], answerLang: 'native' },
+    ],
+    itemIds: [t.douze.id, c.sept.id, d.quarante.id, t.quinze.id, t.onze.id, h.heures.id],
+  },
+  {
+    id: 'fr.u2.listen.booking',
+    unitId: 'fr.u2',
+    level: 'A1',
+    title: 'Un rendez-vous',
+    kind: 'dialogue',
+    setting: 'Inès phones a hair salon to book an appointment.',
+    speakers: { salon: { name: 'Le salon', voice: 'b', pitch: 0.85 }, ines: { name: 'Inès', voice: 'a' } },
+    lines: [
+      { speaker: 'salon', target: 'Salon Élégance, bonjour !', native: 'Élégance salon, hello!' },
+      { speaker: 'ines', target: "Bonjour, je voudrais un rendez-vous, s'il vous plaît.", native: "Hello, I'd like an appointment, please." },
+      { speaker: 'salon', target: 'Oui. Mardi, ça va ?', native: 'Yes. Is Tuesday all right?' },
+      { speaker: 'ines', target: 'Mardi, non. Mercredi ?', native: 'Not Tuesday. Wednesday?' },
+      { speaker: 'salon', target: 'Mercredi à quatorze heures trente ?', native: 'Wednesday at 14:30?' },
+      { speaker: 'ines', target: "Parfait. Je m'appelle Inès Martin.", native: 'Perfect. My name is Inès Martin.' },
+      { speaker: 'salon', target: 'Très bien, madame Martin. À mercredi !', native: 'Very good, Ms Martin. See you on Wednesday!' },
+    ],
+    questions: [
+      { id: 'q1', question: 'Which day is the appointment?', options: ['Wednesday', 'Tuesday', 'Thursday', 'Monday'], answers: ['Wednesday'] },
+      { id: 'q2', question: 'What time is it?', options: ['2:30 pm', '4:30 pm', '2:00 pm', '12:30 pm'], answers: ['2:30 pm'] },
+      { id: 'q3', question: "What is the caller's surname?", answers: ['Martin'], answerLang: 'native' },
+    ],
+    itemIds: [w.mardi.id, w.mercredi.id, t.quatorze.id, c.jevoudrais.id, h.heures.id],
   },
 ]

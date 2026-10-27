@@ -1,7 +1,9 @@
 import type { Conversation } from '../../engine/types'
 import { unit1Items } from './unit1'
+import { unit2Items } from './unit2'
 
 const { g, n, o, c } = unit1Items
+const { h, w } = unit2Items
 
 const NAME = { label: 'say your name', any: ["je m'appelle", 'je suis', "moi c'est"] }
 
@@ -151,5 +153,88 @@ export const conversations: Conversation[] = [
       },
     ],
     itemIds: [g.salut.id, g.cava.id, g.ettoi.id, n.moicest.id, n.enchante.id, o.jeviens.id, g.abientot.id],
+  },
+  {
+    id: 'fr.u2.talk.table',
+    unitId: 'fr.u2',
+    level: 'A1',
+    title: 'Booking a table',
+    setting: 'You phone a restaurant to book dinner for four.',
+    register: 'formal',
+    partner: { name: 'Le restaurant', voice: 'b', pitch: 0.85 },
+    turns: [
+      { kind: 'partner', target: 'Restaurant Le Lys, bonjour !', native: 'Le Lys restaurant, hello!' },
+      {
+        kind: 'learner',
+        goal: "Greet them and say you'd like a table for four people.",
+        slots: [
+          { label: 'greet them', any: ['bonjour', 'bonsoir'] },
+          { label: 'ask politely', any: ['je voudrais'] },
+          { label: 'say four', any: ['quatre', '4'] },
+        ],
+        models: ["Bonjour, je voudrais une table pour quatre personnes, s'il vous plaît."],
+        tip: 'A table for four: une table pour quatre.',
+      },
+      { kind: 'partner', target: 'Pour quel jour ?', native: 'For which day?' },
+      { kind: 'learner', goal: 'Say Saturday.', slots: [{ label: 'say Saturday', any: ['samedi'] }], models: ["Pour samedi, s'il vous plaît."] },
+      { kind: 'partner', target: 'Samedi, très bien. À quelle heure ?', native: 'Saturday, very good. At what time?' },
+      {
+        kind: 'learner',
+        goal: 'Say at eight in the evening.',
+        slots: [{ label: 'say at eight', any: ['à huit heures', 'à vingt heures', 'à 20 heures', 'à 8 heures', 'à 20 h', 'à 8 h'] }],
+        models: ['À vingt heures.', 'À huit heures du soir.'],
+        tip: 'Use à before a time: à vingt heures.',
+      },
+      { kind: 'partner', target: "Parfait. C'est à quel nom ?", native: 'Perfect. What name is it under?' },
+      {
+        kind: 'learner',
+        goal: 'Give your name.',
+        slots: [{ label: 'give your name', any: ["c'est", "je m'appelle", 'au nom de'] }],
+        models: ["C'est au nom de {name}."],
+        tip: "Au nom de means 'in the name of'.",
+      },
+      { kind: 'partner', target: 'Merci. À samedi !', native: 'Thank you. See you on Saturday!' },
+      {
+        kind: 'learner',
+        goal: 'Thank them and say goodbye.',
+        slots: [
+          { label: 'thank them', any: ['merci'] },
+          { label: 'say goodbye', any: ['au revoir', 'à samedi', 'bonne journée', 'bonne soirée'] },
+        ],
+        models: ['Merci, à samedi !'],
+      },
+    ],
+    itemIds: [c.jevoudrais.id, w.samedi.id, h.aquelleheure.id, h.dusoir.id, g.merci.id],
+  },
+  {
+    id: 'fr.u2.talk.plans',
+    unitId: 'fr.u2',
+    level: 'A1',
+    title: 'Making weekend plans',
+    setting: 'Hugo messages you about the weekend.',
+    register: 'informal',
+    partner: { name: 'Hugo', voice: 'a', pitch: 0.8 },
+    turns: [
+      { kind: 'partner', target: 'Salut ! Tu es libre ce week-end ?', native: 'Hi! Are you free this weekend?' },
+      {
+        kind: 'learner',
+        goal: "Say yes, on Sunday.",
+        slots: [
+          { label: 'say yes', any: ['oui'] },
+          { label: 'say Sunday', any: ['dimanche'] },
+        ],
+        models: ['Oui, dimanche !'],
+      },
+      { kind: 'partner', target: 'Super ! On fait un pique-nique ? À quelle heure ?', native: 'Great! Shall we have a picnic? What time?' },
+      { kind: 'learner', goal: 'Suggest midday.', slots: [{ label: 'suggest midday', any: ['midi'] }], models: ['À midi ?'] },
+      { kind: 'partner', target: 'Parfait. Moi, j’invite Léa et Sam. Alors, on est quatre !', native: "Perfect. I'm inviting Léa and Sam. So there are four of us!" },
+      {
+        kind: 'learner',
+        goal: 'Say great, see you Sunday.',
+        slots: [{ label: 'say see you Sunday', any: ['à dimanche'] }],
+        models: ['Super, à dimanche !'],
+      },
+    ],
+    itemIds: [w.weekend.id, w.dimanche.id, h.midi.id, h.aquelleheure.id],
   },
 ]

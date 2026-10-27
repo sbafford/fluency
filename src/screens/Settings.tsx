@@ -4,6 +4,7 @@ import type { SpeechRate } from '../engine/types'
 import { recognitionSupported } from '../speech/recognition'
 import { ttsSupported, voicesFor, voicesReady } from '../speech/tts'
 import { useApp } from '../state/app'
+import { getToken, setToken } from '../sync/gist'
 import { Button, PageHeader, SectionTitle } from '../ui/kit'
 
 function Row({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
@@ -21,7 +22,7 @@ function Row({ label, help, children }: { label: string; help?: string; children
 const selectCls = 'min-h-11 rounded-xl border-[1.5px] border-line bg-raised px-3 text-[15px] outline-none focus:border-ink max-w-[15rem]'
 
 export function Settings() {
-  const { data, pack, settings, updateSettings, replaceData, resetProgress, speaker } = useApp()
+  const { data, pack, settings, updateSettings, replaceData, resetProgress, speaker, sync, syncNow } = useApp()
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [message, setMessage] = useState<{ tone: 'good' | 'bad'; text: string }>()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -44,7 +45,7 @@ export function Settings() {
 
   const upload = async (file: File) => {
     try {
-      const next = importData(await file.text())
+      const next = importData(await file.text(), data.deviceId)
       if (!window.confirm('Replace your current progress and settings with this backup?')) return
       replaceData(next)
       setMessage({ tone: 'good', text: 'Backup imported.' })
@@ -158,6 +159,21 @@ export function Settings() {
         </Row>
       </section>
 
+      <SyncSection
+        status={sync}
+        lastSyncedAt={settings.lastSyncedAt}
+        onConnect={(token) => {
+          setToken(token)
+          void syncNow()
+        }}
+        onDisconnect={() => {
+          setToken(undefined)
+          updateSettings({ lastSyncedAt: undefined })
+          void syncNow()
+        }}
+        onSync={() => void syncNow()}
+      />
+
       <section className="mb-10">
         <SectionTitle>Your data</SectionTitle>
         <p className="mb-2 max-w-[62ch] text-[15px] text-ink-2">
@@ -184,7 +200,11 @@ export function Settings() {
           />
         </div>
         {message && <p className={`text-[15px] ${message.tone === 'good' ? 'text-good' : 'text-bad'}`}>{message.text}</p>}
-        <Row label="Reset progress" help={`Clears all ${pack.name} progress on this device. Settings are kept. This can't be undone.`}>
+        <Row label="Reset progress" help={
+            sync.state === 'off'
+              ? `Clears all ${pack.name} progress on this device. Settings are kept. This can't be undone.`
+              : `Clears ${pack.name} progress on this device. Sync is on, so your synced progress will come back on the next sync. Disconnect sync first to start over.`
+          }>
           <Button
             variant="quiet"
             className="text-bad hover:text-bad"
@@ -200,5 +220,95 @@ export function Settings() {
         </Row>
       </section>
     </div>
+  )
+}
+
+function SyncSection({
+  status,
+  lastSyncedAt,
+  onConnect,
+  onDisconnect,
+  onSync,
+}: {
+  status: { state: 'off' | 'idle' | 'syncing' | 'error'; message?: string }
+  lastSyncedAt?: number
+  onConnect: (token: string) => void
+  onDisconnect: () => void
+  onSync: () => void
+}) {
+  const [token, setTokenValue] = useState('')
+  const connected = status.state !== 'off' && !!getToken()
+  return (
+    <section className="mb-10">
+      <SectionTitle>Sync between devices</SectionTitle>
+      {!connected ? (
+        <div className="max-w-[62ch] space-y-3 text-[15px]">
+          <p className="text-ink-2">
+            Keep progress in step on your phone and computer. It's stored in a secret gist on your GitHub account: free, and
+            only reachable by someone with its exact link. It holds your learning progress and name, nothing else.
+          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-ink-2">
+            <li>
+              On GitHub, create a{' '}
+              <a
+                href="https://github.com/settings/personal-access-tokens/new"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-ink underline underline-offset-4"
+              >
+                fine-grained token
+              </a>
+              . Under Account permissions, set <strong className="text-ink">Gists</strong> to Read and write. Nothing else is needed.
+            </li>
+            <li>Paste it below on each device you use. The token stays on that device; it isn't exported or synced.</li>
+          </ol>
+          <form
+            className="flex flex-wrap gap-2 pt-1"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (token.trim()) onConnect(token.trim())
+              setTokenValue('')
+            }}
+          >
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => setTokenValue(e.target.value)}
+              placeholder="github_pat_…"
+              autoComplete="off"
+              aria-label="GitHub token"
+              className="min-h-11 w-full max-w-sm rounded-xl border-[1.5px] border-line bg-raised px-3 text-[15px] outline-none focus:border-ink"
+            />
+            <Button type="submit" disabled={!token.trim()}>
+              Connect
+            </Button>
+          </form>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-[15px]">
+            {status.state === 'syncing'
+              ? 'Syncing…'
+              : status.state === 'error'
+                ? null
+                : lastSyncedAt
+                  ? `Synced ${new Date(lastSyncedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}.`
+                  : 'Connected.'}
+          </p>
+          {status.state === 'error' && <p className="max-w-[62ch] text-[15px] text-bad">{status.message}</p>}
+          <p className="max-w-[62ch] text-[14px] text-ink-2">
+            Syncs when you open the app, when you switch away from it, and shortly after you practise.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={onSync} disabled={status.state === 'syncing'}>
+              Sync now
+            </Button>
+            <Button variant="quiet" onClick={onDisconnect}>
+              Disconnect this device
+            </Button>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

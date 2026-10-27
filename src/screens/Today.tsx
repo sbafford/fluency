@@ -1,3 +1,4 @@
+import { dayLog } from '../engine/progress'
 import { useState } from 'react'
 import { todayPlan } from '../engine/session'
 import { dayKey } from '../engine/srs'
@@ -26,7 +27,7 @@ export function Today() {
     const d = new Date(now)
     d.setDate(d.getDate() - (6 - i))
     const key = dayKey(d.getTime())
-    return { key, label: d.toLocaleDateString(undefined, { weekday: 'narrow' }), active: (progress.days[key]?.answered ?? 0) > 0 }
+    return { key, label: d.toLocaleDateString(undefined, { weekday: 'narrow' }), active: dayLog(progress, key).answered > 0 }
   })
 
   const revise = plan.dueCount > 0 && (

@@ -27,9 +27,13 @@ Other commands:
 
 ## Using it on several devices
 
-Progress lives in each browser. Until there is sync, move it with **Settings > Export backup** on one device and **Import backup** on the other.
+**Sync.** In Settings, under *Sync between devices*, paste a GitHub fine-grained token with the Gists permission (read and write) on each device. Progress is merged through a secret gist on your account: no server, no cost. It syncs when the app opens, when you switch away from it, and shortly after you practise. The token stays in that browser; it isn't exported or synced. Secret gists are unlisted rather than private (anyone with the exact link could read it), and the file holds only learning progress and your name.
 
-The built site is static, so it can be hosted on GitHub Pages: `npm run build` and publish `dist/`. Asset paths are relative and routing uses `#/` URLs, so it works from any sub-path.
+**Hosting.** To open the app on your phone, it needs to be online. Pushing to `main` runs `.github/workflows/deploy.yml`, which tests, builds and publishes to GitHub Pages. One-time setup on GitHub: *Settings > Pages > Source: GitHub Actions*. Pages is free for public repositories; for a private repository it needs a paid GitHub plan. Nothing secret is in the code, so a public repository is fine.
+
+**Install.** Once hosted, open it in Safari on iPhone and choose *Share > Add to Home Screen* (or *Install app* in Chrome). It then opens full screen and works offline; sync catches up when you're back online.
+
+**Without sync**, use *Settings > Export backup* on one device and *Import backup* on the other.
 
 ## How it's organised
 
@@ -39,6 +43,7 @@ src/
                sessions, progress, statistics, storage. Pure functions, fully tested.
   content/     Language packs. content/fr/ is the French course; content/index.ts lists packs.
   speech/      Browser text-to-speech and speech recognition.
+  sync/        Sync through a GitHub gist; merging lives in engine/merge.ts.
   tutor/       The tutor interface and the scripted tutor used now.
   state/       App state (one saved document) and a small hash router.
   ui/          Shared components and one component per exercise type.

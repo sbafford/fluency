@@ -16,17 +16,39 @@ import type {
 
 export const RECENT_LIMIT = 1000
 
-export function emptyProgress(languageId: string): ProgressState {
-  return { languageId, items: {}, lessons: {}, listening: {}, conversations: {}, days: {}, recent: [] }
+export function emptyProgress(languageId: string, device = 'local'): ProgressState {
+  return { languageId, device, items: {}, lessons: {}, listening: {}, conversations: {}, days: {}, recent: [] }
 }
 
-function emptyDay(): DayLog {
+export function emptyDay(): DayLog {
   return { answered: 0, correct: 0, lessons: 0, reviews: 0, activeMs: 0 }
 }
 
 function withDay(p: ProgressState, now: number, update: (d: DayLog) => DayLog): ProgressState {
   const key = dayKey(now)
-  return { ...p, days: { ...p.days, [key]: update(p.days[key] ?? emptyDay()) } }
+  const mine = p.days[p.device] ?? {}
+  return { ...p, days: { ...p.days, [p.device]: { ...mine, [key]: update(mine[key] ?? emptyDay()) } } }
+}
+
+/** Activity for one date, summed across every device that has synced. */
+export function dayLog(p: ProgressState, key: string): DayLog {
+  const total = emptyDay()
+  for (const perDevice of Object.values(p.days)) {
+    const d = perDevice[key]
+    if (!d) continue
+    total.answered += d.answered
+    total.correct += d.correct
+    total.lessons += d.lessons
+    total.reviews += d.reviews
+    total.activeMs += d.activeMs
+  }
+  return total
+}
+
+export function totalActiveMs(p: ProgressState): number {
+  let ms = 0
+  for (const perDevice of Object.values(p.days)) for (const d of Object.values(perDevice)) ms += d.activeMs
+  return ms
 }
 
 export interface AnswerEvent {

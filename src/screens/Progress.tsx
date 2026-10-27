@@ -1,3 +1,4 @@
+import { totalActiveMs } from '../engine/progress'
 import { indexPack } from '../engine/session'
 import { ERROR_LABELS, levelSummary, recentDays, skillSummaries, statusCounts, topErrors, troubleItems } from '../engine/stats'
 import type { Skill } from '../engine/types'
@@ -23,7 +24,7 @@ export function Progress() {
   const maxDay = Math.max(1, ...days.map((d) => d.answered))
   const totalItems = indexPack(pack).items.size
   const lessonsDone = Object.values(progress.lessons).filter((l) => l.completedAt).length
-  const minutes = Math.round(Object.values(progress.days).reduce((n, d) => n + d.activeMs, 0) / 60000)
+  const minutes = Math.round(totalActiveMs(progress) / 60000)
 
   return (
     <div>

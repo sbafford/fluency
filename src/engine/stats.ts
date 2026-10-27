@@ -1,3 +1,4 @@
+import { dayLog } from './progress'
 import { DAY, dayKey, itemStatus, type ItemStatus } from './srs'
 import { indexPack } from './session'
 import type { CanDo, ErrorType, LanguagePack, LevelDefinition, ProgressState, Skill } from './types'
@@ -106,7 +107,7 @@ export function recentDays(p: ProgressState, now: number, n = 14) {
     const d = new Date(now)
     d.setDate(d.getDate() - i)
     const key = dayKey(d.getTime())
-    const log = p.days[key]
+    const log = dayLog(p, key)
     out.push({ key, answered: log?.answered ?? 0, correct: log?.correct ?? 0 })
   }
   return out

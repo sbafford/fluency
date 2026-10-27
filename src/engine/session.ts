@@ -1,3 +1,4 @@
+import { dayLog } from './progress'
 import { expandVariants } from './answers'
 import { dayKey, isDue, itemStatus } from './srs'
 import type {
@@ -327,12 +328,12 @@ export function todayPlan(pack: LanguagePack, progress: ProgressState, settings:
   const dueCount = due.length
   const dueItems = new Set(due.map((d) => d.itemId)).size
   const next = nextLesson(pack, progress)
-  const answeredToday = progress.days[dayKey(now)]?.answered ?? 0
+  const answeredToday = dayLog(progress, dayKey(now)).answered
 
   const active = (offset: number) => {
     const d = new Date(now)
     d.setDate(d.getDate() - offset)
-    return (progress.days[dayKey(d.getTime())]?.answered ?? 0) > 0
+    return dayLog(progress, dayKey(d.getTime())).answered > 0
   }
   let activeDaysThisWeek = 0
   for (let i = 0; i < 7; i++) if (active(i)) activeDaysThisWeek++

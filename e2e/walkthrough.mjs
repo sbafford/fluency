@@ -10,7 +10,34 @@ const BASE = 'http://localhost:4173/'
 const errors = []
 
 const browser = await pw.launch({ executablePath: process.env.CHROME_PATH || undefined, headless: true })
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true })
+const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, serviceWorkers: 'block' }
+const ctx = await browser.newContext(phone)
+
+// A stand-in for the GitHub gists API, shared by both simulated devices.
+const gists = new Map()
+async function fakeGitHub(route) {
+  const req = route.request()
+  const url = new URL(req.url())
+  const method = req.method()
+  if (req.headers()['authorization'] !== 'Bearer test-token') return route.fulfill({ status: 401, body: '{}' })
+  const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  const one = url.pathname.match(/^\/gists\/(\w+)$/)
+  if (method === 'GET' && url.pathname === '/gists') return json([...gists.values()])
+  if (method === 'GET' && one) return gists.has(one[1]) ? json(gists.get(one[1])) : json({}, 404)
+  const body = req.postData() ? JSON.parse(req.postData()) : {}
+  const files = Object.fromEntries(Object.entries(body.files ?? {}).map(([k, v]) => [k, { filename: k, content: v.content }]))
+  if (method === 'POST') {
+    const id = 'gist' + (gists.size + 1)
+    gists.set(id, { id, description: body.description, files })
+    return json(gists.get(id), 201)
+  }
+  if (method === 'PATCH' && one) {
+    Object.assign(gists.get(one[1]).files, files)
+    return json(gists.get(one[1]))
+  }
+  return json({}, 404)
+}
+await ctx.route('https://api.github.com/**', fakeGitHub)
 const page = await ctx.newPage()
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message))
 page.on('console', (m) => m.type() === 'error' && errors.push('console: ' + m.text()))
@@ -150,6 +177,74 @@ await page.screenshot({ path: `${out}/17-desktop-exercise.png` })
 // Persistence: data survives a reload, and export produces a backup.
 const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('fluency.data')))
 console.log('saved lessons:', Object.keys(saved.progress.fr.lessons), 'items:', Object.keys(saved.progress.fr.items).length)
+
+// Sync: connect this device, then a second device picks up the progress.
+await page.setViewportSize({ width: 390, height: 844 })
+await page.goto(BASE + '#/settings')
+await page.fill('input[aria-label="GitHub token"]', 'test-token')
+await page.click('button:has-text("Connect")')
+await page.waitForSelector('text=/^Synced /')
+await page.screenshot({ path: `${out}/18-sync-connected.png`, fullPage: true })
+console.log('gists after first sync:', gists.size)
+
+const ctx2 = await browser.newContext(phone)
+await ctx2.route('https://api.github.com/**', fakeGitHub)
+const page2 = await ctx2.newPage()
+page2.on('pageerror', (e) => errors.push('device 2 pageerror: ' + e.message))
+await page2.clock.install({ time: new Date('2026-10-28T10:00:00') })
+await page2.addInitScript(() => {
+  if (!localStorage.getItem('fluency.data'))
+    localStorage.setItem('fluency.data', JSON.stringify({ version: 2, deviceId: 'tablet', activeLanguage: 'fr', settings: { speechInput: false }, progress: { fr: {} } }))
+})
+await page2.goto(BASE + '#/settings')
+await page2.fill('input[aria-label="GitHub token"]', 'test-token')
+await page2.click('button:has-text("Connect")')
+await page2.waitForSelector('text=/^Synced /')
+await page2.goto(BASE + '#/learn')
+await page2.waitForSelector('text=Premiers pas')
+const done2 = await page2.locator('text=/Best \\d+%/').count()
+console.log('device 2 sees completed lessons:', done2, 'gists:', gists.size)
+await page2.goto(BASE)
+await page2.waitForSelector('h1')
+console.log('device 2 greeting:', (await page2.locator('h1').first().textContent()).trim())
+await page2.screenshot({ path: `${out}/19-device2-today.png`, fullPage: true })
+
+// Unit 2: unlock it on device 2 by marking Unit 1 complete, then take the time lesson.
+await page2.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem('fluency.data'))
+  for (const id of ['fr.u1.l1', 'fr.u1.l2', 'fr.u1.l3', 'fr.u1.l4', 'fr.u1.check', 'fr.u2.l1', 'fr.u2.l2'])
+    d.progress.fr.lessons[id] = { attempts: 1, completedAt: Date.now(), bestScore: 1, lastScore: 1 }
+  localStorage.setItem('fluency.data', JSON.stringify(d))
+})
+await page2.goto(BASE + '#/lesson/fr.u2.l3')
+await page2.reload()
+await page2.waitForSelector('text=By the end, you can')
+await page2.screenshot({ path: `${out}/20-u2-intro.png` })
+await page2.click('button:has-text("Start lesson")')
+const runner = async () => {
+  for (let guard = 0; guard < 150; guard++) {
+    if (await page2.locator('text=/Lesson complete/').count()) return guard
+    const vis = async (sel) => (await page2.locator(sel).count()) > 0 && (await page2.locator(sel).first().isVisible())
+    if (guard === 7 || guard === 12) await page2.screenshot({ path: `${out}/21-u2-step-${guard}.png` })
+    if (await vis('button:has-text("Continue")')) { await page2.locator('button:has-text("Continue")').last().click(); continue }
+    if (await vis('button:has-text("I said it comfortably")')) { await page2.click('button:has-text("I said it comfortably")'); continue }
+    if (await vis('text=Build the sentence in French')) {
+      await page2.locator('div.mb-6.flex.flex-wrap button:not([disabled])').first().click()
+      await page2.click('button:has-text("Check")')
+      continue
+    }
+    if (await vis('input[aria-label="Your answer"]')) {
+      await page2.fill('input[aria-label="Your answer"]', 'il est midi')
+      await page2.click('button:has-text("Check")')
+      continue
+    }
+    const opts = page2.locator('div.grid.gap-2\\.5 > button:not([disabled])')
+    if (await opts.count()) { await opts.first().click(); continue }
+    throw new Error('Stuck in unit 2 lesson at ' + guard)
+  }
+}
+console.log('unit 2 lesson steps:', await runner())
+await page2.screenshot({ path: `${out}/22-u2-done.png`, fullPage: true })
 
 console.log('ERRORS:', errors.length ? errors.join('\n') : 'none')
 await browser.close()
