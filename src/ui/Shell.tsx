@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useApp } from '../state/app'
 import { href, type Route } from '../state/router'
+import { SyncBadge } from './SyncBadge'
 import { LearnIcon, PractiseIcon, ProgressIcon, SettingsIcon, TodayIcon } from './icons'
 
 const NAV = [
@@ -36,10 +37,13 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
             </li>
           ))}
         </ul>
+        <div className="mt-auto mb-2 px-3">
+          <SyncBadge tone="rail" />
+        </div>
         <a
           href="#/settings"
           aria-current={active === 'settings' ? 'page' : undefined}
-          className={`mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium ${
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium ${
             active === 'settings' ? 'text-on-rail' : 'text-on-rail-dim hover:text-on-rail'
           }`}
         >

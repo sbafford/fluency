@@ -14,6 +14,8 @@ import { getToken, mergeData, SyncError, syncNow } from '../sync/gist'
 export interface SyncStatus {
   state: 'off' | 'idle' | 'syncing' | 'error'
   message?: string
+  /** True when there is practice on this device that hasn't been synced yet. */
+  pending?: boolean
 }
 
 interface AppContextValue {
@@ -50,6 +52,11 @@ export function AppProvider({ children, initial }: { children: ReactNode; initia
   // Set by the learner's own changes, not by merges from sync, so syncing never triggers itself.
   const dirty = useRef(false)
   const syncing = useRef(false)
+  const [pending, setPending] = useState(false)
+  const markDirty = useCallback(() => {
+    dirty.current = true
+    setPending(true)
+  }, [])
 
   useEffect(() => {
     setSaveFailed(!save(data))
@@ -74,6 +81,8 @@ export function AppProvider({ children, initial }: { children: ReactNode; initia
     syncing.current = true
     dirty.current = false
     setSync({ state: 'syncing' })
+    // Anything recorded from here on marks the device as pending again.
+    setPending(false)
     try {
       const result = await syncNow(dataRef.current, token)
       // Fold in anything answered while the request was in flight. Merging is safe to repeat.
@@ -83,12 +92,12 @@ export function AppProvider({ children, initial }: { children: ReactNode; initia
       })
       setSync({ state: 'idle' })
     } catch (err) {
-      dirty.current = true
+      markDirty()
       setSync({ state: 'error', message: err instanceof SyncError ? err.message : 'Sync failed. Try again later.' })
     } finally {
       syncing.current = false
     }
-  }, [])
+  }, [markDirty])
 
   // Sync on open, when the app is hidden (switching apps, locking the phone), and shortly after changes.
   useEffect(() => {
@@ -109,12 +118,12 @@ export function AppProvider({ children, initial }: { children: ReactNode; initia
   }, [runSync, sync.state === 'off'])
 
   const updateProgress = useCallback((fn: (p: ProgressState) => ProgressState) => {
-    dirty.current = true
+    markDirty()
     setData((d) => {
       const current = d.progress[d.activeLanguage] ?? P.emptyProgress(d.activeLanguage, d.deviceId)
       return { ...d, progress: { ...d.progress, [d.activeLanguage]: fn(current) } }
     })
-  }, [])
+  }, [markDirty])
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setData((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
@@ -144,11 +153,11 @@ export function AppProvider({ children, initial }: { children: ReactNode; initia
     settings,
     speaker,
     saveFailed,
-    sync,
+    sync: { ...sync, pending: sync.state !== 'off' && (pending || sync.state === 'error') },
     updateProgress,
     updateSettings,
     replaceData: (next) => {
-      dirty.current = true
+      markDirty()
       setData(next)
     },
     resetProgress: () =>

@@ -6,6 +6,7 @@ import { levelSummary } from '../engine/stats'
 import { useApp } from '../state/app'
 import { href } from '../state/router'
 import { SettingsIcon } from '../ui/icons'
+import { SyncBadge } from '../ui/SyncBadge'
 import { Bar, Button, LinkButton, SectionTitle } from '../ui/kit'
 
 function greeting(now: Date): string {
@@ -57,6 +58,9 @@ export function Today() {
           </p>
           <div className="mt-3 w-56 max-w-full">
             <Bar value={plan.answeredToday / plan.goal} tone={plan.goalMet ? 'good' : 'accent'} label="Daily goal" />
+          </div>
+          <div className="mt-3 md:hidden">
+            <SyncBadge />
           </div>
         </div>
         <a href="#/settings" aria-label="Settings" className="mt-2 rounded-full p-2 text-ink-2 hover:text-ink md:hidden">

@@ -230,7 +230,7 @@ function SyncSection({
   onDisconnect,
   onSync,
 }: {
-  status: { state: 'off' | 'idle' | 'syncing' | 'error'; message?: string }
+  status: { state: 'off' | 'idle' | 'syncing' | 'error'; message?: string; pending?: boolean }
   lastSyncedAt?: number
   onConnect: (token: string) => void
   onDisconnect: () => void
@@ -291,7 +291,9 @@ function SyncSection({
               ? 'Syncing…'
               : status.state === 'error'
                 ? null
-                : lastSyncedAt
+                : status.pending
+                  ? 'Changes waiting to sync. They go up shortly after you practise, or when you leave the app.'
+                  : lastSyncedAt
                   ? `Synced ${new Date(lastSyncedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}.`
                   : 'Connected.'}
           </p>
