@@ -14,12 +14,19 @@ import { Shell } from './ui/Shell'
 
 export default function App() {
   const route = useRoute()
-  const { pack } = useApp()
+  const { pack, settings } = useApp()
 
   useEffect(() => {
     document.documentElement.lang = 'en'
-    document.title = `${pack.nativeName.toLowerCase()} · fluency`
+    document.title = `fluéncy · ${pack.nativeName.toLowerCase()}`
   }, [pack])
+
+  // Appearance: an explicit choice wins; otherwise the device setting applies (see index.css).
+  useEffect(() => {
+    const root = document.documentElement
+    if (settings.theme) root.dataset.theme = settings.theme
+    else delete root.dataset.theme
+  }, [settings.theme])
 
   // Focused activities take the whole screen; everything else sits in the shell.
   switch (route.name) {

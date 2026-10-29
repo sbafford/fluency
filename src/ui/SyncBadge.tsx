@@ -1,48 +1,39 @@
 import { useApp } from '../state/app'
 
 /*
- * A small sync indicator. Hidden when sync isn't set up. Tapping it opens
- * Settings, where "Sync now" and any error details live.
+ * Sync status: a small dot and a word. Hidden when sync isn't set up.
+ * Tapping it opens Settings, where "Sync Now" and any error details live.
  */
 
 function timeAgo(t: number, now: number): string {
   const mins = Math.round((now - t) / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins} min ago`
+  if (mins < 1) return 'Just Now'
+  if (mins < 60) return `${mins} Min Ago`
   const hours = Math.round(mins / 60)
-  if (hours < 24) return `${hours} h ago`
+  if (hours < 24) return `${hours} H Ago`
   return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
-export function SyncBadge({ tone = 'paper' }: { tone?: 'paper' | 'rail' }) {
+export function syncText(state: string, pending: boolean | undefined, lastSyncedAt: number | undefined, long = false) {
+  if (state === 'syncing') return { label: 'Syncing', dot: 'bg-fill animate-pulse' }
+  if (state === 'error') return { label: 'Not Synced', dot: 'bg-accent' }
+  if (pending) return { label: long ? 'Changes Waiting to Sync' : 'Waiting', dot: 'bg-yellow' }
+  if (long && lastSyncedAt) return { label: `Last Synced ${timeAgo(lastSyncedAt, Date.now())}`, dot: 'bg-sync' }
+  return { label: 'Synced', dot: 'bg-sync' }
+}
+
+export function SyncBadge() {
   const { sync, settings } = useApp()
   if (sync.state === 'off') return null
-
-  let label: string
-  let dot: string
-  if (sync.state === 'syncing') {
-    label = 'Syncing…'
-    dot = 'bg-accent animate-pulse'
-  } else if (sync.state === 'error') {
-    label = 'Not synced'
-    dot = 'bg-bad'
-  } else if (sync.pending) {
-    label = 'Changes waiting to sync'
-    dot = 'bg-near'
-  } else {
-    label = settings.lastSyncedAt ? `Synced ${timeAgo(settings.lastSyncedAt, Date.now())}` : 'Synced'
-    dot = 'bg-good'
-  }
-
-  const text = tone === 'rail' ? 'text-on-rail-dim hover:text-on-rail' : 'text-ink-2 hover:text-ink'
+  const { label, dot } = syncText(sync.state, sync.pending, settings.lastSyncedAt)
   return (
     <a
       href="#/settings"
-      className={`inline-flex items-center gap-2 text-[13px] ${text}`}
+      className="flex items-center gap-1.5 text-[13px] text-ink-2 hover:text-ink"
       aria-label={`Sync status: ${label}${sync.state === 'error' && sync.message ? `. ${sync.message}` : ''}`}
       title={sync.state === 'error' ? sync.message : undefined}
     >
-      <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
       {label}
     </a>
   )

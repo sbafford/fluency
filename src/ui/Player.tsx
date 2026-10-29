@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from 'react'
 import { normalise } from '../engine/answers'
+import { recordAnswer } from '../engine/progress'
 import { indexPack, isScored, shuffle } from '../engine/session'
-import { ERROR_LABELS } from '../engine/stats'
-import type { Exercise, Lesson } from '../engine/types'
+import { itemStatus } from '../engine/srs'
+import { strengthLabel } from '../engine/stats'
+import type { ErrorType, Exercise, Lesson } from '../engine/types'
 import { useApp } from '../state/app'
 import {
   Build,
   Choose,
-  ContinueBar,
   DialogueView,
   Dictation,
   Gap,
@@ -20,14 +21,13 @@ import {
   TypeIt,
   type Verdict,
 } from './exercises'
-import { CheckIcon, CrossIcon } from './icons'
-import { AudioButton, Bar, Button } from './kit'
+import { FeedbackSheet, FocusFrame, type SheetTone } from './Focus'
+import { Pill } from './kit'
 
 /*
- * Runs a sequence of exercises: lessons, revision sessions and checkpoints all
- * use it. Wrong answers come back once at the end of the session so the item is
- * practised again while it is fresh; only the first attempt counts towards the
- * session score.
+ * Runs a sequence of exercises: lessons, revision and unit checks all use it.
+ * Wrong answers come back once at the end of the session, while they are
+ * fresh; only the first attempt counts towards the score.
  */
 
 export interface SessionSummary {
@@ -47,42 +47,50 @@ function withShuffledOptions(e: Exercise): Exercise {
   return e
 }
 
+const WRONG_LABEL: Partial<Record<ErrorType, string>> = {
+  article: 'Check the Article',
+  gender: 'Masculine or Feminine',
+  'word-order': 'Word Order',
+  'missing-word': 'A Word Is Missing',
+  'extra-word': 'One Word Too Many',
+  meaning: 'Different Meaning',
+}
+
 export function Player({
   exercises,
   lesson,
   review = false,
+  kind,
+  title,
   closeHref,
   onFinish,
 }: {
   exercises: Exercise[]
   lesson?: Lesson
   review?: boolean
+  kind: string
+  title: string
   closeHref: string
   onFinish: (summary: SessionSummary) => void
 }) {
-  const { record, tick } = useApp()
+  const { record, tick, progress, pack, speaker } = useApp()
   const [queue, setQueue] = useState<QueueEntry[]>(() => exercises.map((exercise) => ({ exercise, retry: false })))
   const [pos, setPos] = useState(0)
   const [verdict, setVerdict] = useState<Verdict>()
+  const [change, setChange] = useState<{ from: string; to: string; days: number }>()
   const [results, setResults] = useState<Record<string, Verdict>>({})
 
   const entry = queue[pos]
 
   const finish = useCallback(() => {
-    const scoredIds = exercises.filter(isScored).map((e) => e.id)
-    const firsts = scoredIds.map((id) => results[id]).filter((v): v is Verdict => !!v)
-    const missed = exercises
-      .filter((e) => results[e.id]?.result === 'wrong')
-      .flatMap((e) => e.itemIds)
-    onFinish({
-      scored: firsts.length,
-      correct: firsts.filter((v) => v.result !== 'wrong').length,
-      missed: [...new Set(missed)],
-    })
+    const firsts = exercises.filter(isScored).map((e) => results[e.id]).filter((v): v is Verdict => !!v)
+    const missed = exercises.filter((e) => results[e.id]?.result === 'wrong').flatMap((e) => e.itemIds)
+    onFinish({ scored: firsts.length, correct: firsts.filter((v) => v.result !== 'wrong').length, missed: [...new Set(missed)] })
   }, [exercises, results, onFinish])
 
   const next = useCallback(() => {
     setVerdict(undefined)
+    setChange(undefined)
     if (pos + 1 >= queue.length) finish()
     else setPos(pos + 1)
   }, [pos, queue.length, finish])
@@ -92,23 +100,48 @@ export function Player({
     next()
   }, [tick, next])
 
+  // In revision, show the item's strength and what it was last time.
+  const reviewInfo = useMemo(() => {
+    if (!review || !entry) return undefined
+    const id = entry.exercise.itemIds[0]
+    const ip = progress.items[id]
+    const status = itemStatus(ip)
+    const missedLast = progress.recent.findLast((a) => a.itemIds.includes(id))?.result === 'wrong'
+    return { status, context: missedLast ? 'Missed Last Time' : 'Due for Review' }
+    // Computed once per exercise, before this answer changes it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review, pos])
+
   const onAnswer = (v: Verdict) => {
     if (!entry || verdict) return
-    setVerdict(v)
     const e = entry.exercise
+    if (review && e.itemIds.length) {
+      const id = e.itemIds[0]
+      const now = Date.now()
+      const after = recordAnswer(progress, { itemIds: [id], skill: v.skill, result: v.result, hinted: v.hinted, now })
+      const from = strengthLabel(itemStatus(progress.items[id]))
+      const to = strengthLabel(itemStatus(after.items[id]))
+      const track = after.items[id]?.tracks[v.skill]
+      const days = track ? Math.max(0, Math.round((track.due - now) / 86_400_000)) : 0
+      setChange({ from, to, days })
+    }
+    setVerdict(v)
     record({ itemIds: e.itemIds, skill: v.skill, result: v.result, errorType: v.errorType, hinted: v.hinted, review })
     if (!entry.retry) setResults((r) => ({ ...r, [e.id]: v }))
-    if (v.result === 'wrong' && !entry.retry) {
-      setQueue((q) => [...q, { exercise: withShuffledOptions(e), retry: true }])
-    }
+    if (v.result === 'wrong' && !entry.retry) setQueue((q) => [...q, { exercise: withShuffledOptions(e), retry: true }])
   }
 
-  // Leaving mid-session keeps everything already answered; nothing to save here.
+  // Item notes explain the commonest mistakes, so show one when the answer wasn't right.
+  const itemNote = useMemo(() => {
+    if (!entry || !verdict || verdict.result === 'correct') return undefined
+    const { items } = indexPack(pack)
+    return entry.exercise.itemIds.map((id) => items.get(id)?.note).find((n): n is string => !!n)
+  }, [entry, verdict, pack])
+
   if (!entry) return null
   const e = entry.exercise
-  const locked = !!verdict
-  const scoredTotal = queue.length
   const key = `${e.id}-${pos}`
+  const props = { onAnswer, verdict }
 
   let body: React.ReactNode
   switch (e.type) {
@@ -122,105 +155,80 @@ export function Player({
       body = lesson ? <NoteView key={key} lesson={lesson} noteId={e.noteId} onDone={unscoredDone} /> : null
       break
     case 'choose':
-      body = <Choose key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <Choose key={key} exercise={e} {...props} />
       break
     case 'listen-choose':
-      body = <ListenChoose key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <ListenChoose key={key} exercise={e} {...props} />
       break
     case 'gap':
-      body = <Gap key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <Gap key={key} exercise={e} {...props} />
       break
     case 'type':
-      body = <TypeIt key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <TypeIt key={key} exercise={e} {...props} />
       break
     case 'dictation':
-      body = <Dictation key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <Dictation key={key} exercise={e} {...props} />
       break
     case 'build':
-      body = <Build key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <Build key={key} exercise={e} {...props} />
       break
     case 'speak':
-      body = <Speak key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <Speak key={key} exercise={e} {...props} />
       break
     case 'respond':
-      body = <Respond key={key} exercise={e} onAnswer={onAnswer} locked={locked} />
+      body = <Respond key={key} exercise={e} {...props} />
       break
   }
 
+  let sheet: React.ReactNode
+  if (verdict && SKILL_OF[e.type]) {
+    const v = verdict
+    const tone: SheetTone = v.result === 'correct' ? 'correct' : v.result === 'near' ? 'nearly' : 'wrong'
+    let title = { correct: review ? 'Oui !' : 'Très bien !', nearly: 'Presque !', wrong: 'Pas tout à fait' }[tone]
+    let label = ''
+    if (tone === 'nearly') label = v.errorType === 'accent' ? 'Counts as Correct · Watch the Accent' : v.errorType === 'typo' ? 'Counts as Correct · Small Slip' : 'Partly Right'
+    if (tone === 'wrong' && v.errorType) label = WRONG_LABEL[v.errorType] ?? ''
+    if (v.selfAssessed) {
+      title = v.result === 'correct' ? 'Très bien !' : 'Continuez !'
+      label = 'Keep Saying It Aloud'
+    }
+    if (change && tone !== 'wrong' && change.from !== change.to) label = `${change.from} → ${change.to}`
+
+    const notes: string[] = []
+    if (v.detail) notes.push(v.detail)
+    if (tone === 'correct' && v.given && v.expected && v.expectedIsFrench && normalise(v.given) !== normalise(v.expected) && e.type !== 'choose' && e.type !== 'gap')
+      notes.push(`You wrote: ${v.given}`)
+    if (itemNote) notes.push(itemNote)
+    if (change && tone !== 'wrong' && change.days > 0) notes.push(`Next review in ${change.days} ${change.days === 1 ? 'day' : 'days'}.`)
+    if (tone === 'wrong' && !entry.retry) notes.push('This one comes back at the end of the session.')
+
+    sheet = (
+      <FeedbackSheet
+        tone={tone}
+        title={title}
+        label={label || undefined}
+        answer={v.expected}
+        answerIsFrench={v.expectedIsFrench}
+        onPlay={v.expected && v.expectedIsFrench ? () => speaker.speak(v.expected!) : undefined}
+        onContinue={next}
+      >
+        {notes.length > 0 && notes.map((n) => <p key={n} className="m-0">{n}</p>)}
+      </FeedbackSheet>
+    )
+  }
+
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[720px] flex-col px-5">
-      <div className="sticky top-0 z-10 flex items-center gap-4 bg-paper pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
-        <a href={closeHref} aria-label="Close and save" className="-ml-2 rounded-full p-2 text-ink-2 hover:text-ink">
-          <CrossIcon size={24} />
-        </a>
-        <Bar value={pos / scoredTotal} label="Session progress" />
-        <span className="w-12 shrink-0 text-right text-[13px] tabular-nums text-ink-3">
-          {pos + 1}/{scoredTotal}
-        </span>
-      </div>
-      {entry.retry && <p className="mb-2 text-[14px] font-medium text-accent">Once more, while it's fresh</p>}
-      <main className={`flex-1 pt-4 ${verdict ? 'pb-72' : 'pb-10'}`}>{body}</main>
-      {verdict && SKILL_OF[e.type] && <Feedback verdict={verdict} exercise={e} onContinue={next} />}
-    </div>
+    <FocusFrame kind={kind} title={title} count={`${pos + 1}/${queue.length}`} progress={pos / queue.length} closeHref={closeHref} bottom={sheet}>
+      {entry.retry && <div className="text-[14px] font-semibold text-accent">Once More, While It's Fresh</div>}
+      {reviewInfo && (
+        <div className="flex items-center gap-2.5">
+          <Pill tone={reviewInfo.status === 'struggling' ? 'shaky' : reviewInfo.status === 'mastered' ? 'sealed' : reviewInfo.status === 'learning' ? 'solid' : 'new'}>
+            {strengthLabel(reviewInfo.status)}
+          </Pill>
+          <span className="text-[14px] text-ink-2">{reviewInfo.context}</span>
+        </div>
+      )}
+      {body}
+    </FocusFrame>
   )
 }
-
-function expectedIsTarget(e: Exercise): boolean {
-  if (e.type === 'choose') return e.promptLang === 'native'
-  return e.type !== 'listen-choose'
-}
-
-function Feedback({ verdict: v, exercise: e, onContinue }: { verdict: Verdict; exercise: Exercise; onContinue: () => void }) {
-  const { pack } = useApp()
-  const notes = useMemo(() => {
-    if (v.result === 'correct') return []
-    const { items } = indexPack(pack)
-    return e.itemIds.map((id) => items.get(id)?.note).filter((n): n is string => !!n).slice(0, 1)
-  }, [v.result, e.itemIds, pack])
-
-  // The Continue button takes focus, so Enter moves on without a global key handler.
-  const tone = { correct: 'bg-good-wash', near: 'bg-near-wash', wrong: 'bg-bad-wash' }[v.result]
-  const ink = { correct: 'text-good', near: 'text-near', wrong: 'text-bad' }[v.result]
-  let heading = { correct: 'Correct', near: 'Nearly there', wrong: 'Not quite' }[v.result]
-  if (v.result === 'near' && v.errorType === 'accent') heading = 'Correct, but check the accents'
-  if (v.result === 'near' && v.errorType === 'typo') heading = 'Correct, with a small slip'
-  if (v.selfAssessed) heading = v.result === 'correct' ? 'Good. Keep saying it aloud' : 'Keep at it. It gets easier'
-  if (v.skill === 'speaking' && !v.selfAssessed && v.result === 'near') heading = 'Partly understood'
-
-  const showExpected = v.expected && v.result !== 'correct'
-  return (
-    <div className={`sheet-rise fixed inset-x-0 bottom-0 z-20 ${tone}`} role="status" aria-live="polite">
-      <div className="mx-auto max-w-[720px] px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <p className={`flex items-center gap-2 text-[19px] font-semibold ${ink}`}>
-          {v.result === 'wrong' ? <CrossIcon size={22} /> : <CheckIcon size={22} />}
-          {heading}
-        </p>
-        {showExpected && (
-          <div className="mt-2 flex items-center gap-3">
-            {expectedIsTarget(e) && <AudioButton text={v.expected!} size="sm" />}
-            <p className={expectedIsTarget(e) ? 'target text-[24px] leading-snug' : 'text-[17px]'}>{v.expected}</p>
-          </div>
-        )}
-        {v.result === 'correct' && v.expected && (e.type === 'type' || e.type === 'dictation' || e.type === 'respond') && v.given && normalise(v.given) !== normalise(v.expected) && (
-          <p className="mt-1 text-[15px] text-ink-2">
-            Also: <span className="target text-[18px] text-ink">{v.expected}</span>
-          </p>
-        )}
-        {v.detail && <p className="mt-2 max-w-[60ch] text-[15px] text-ink-2">{v.detail}</p>}
-        {v.errorType && v.result !== 'correct' && v.errorType !== 'meaning' && v.errorType !== 'wrong-word' && (
-          <p className="mt-1 text-[14px] text-ink-2">Pattern: {ERROR_LABELS[v.errorType]}</p>
-        )}
-        {notes.map((n) => (
-          <p key={n} className="mt-1 max-w-[60ch] text-[15px] text-ink-2">
-            {n}
-          </p>
-        ))}
-        <Button onClick={onContinue} className="mt-4 w-full md:w-auto md:min-w-48" autoFocus>
-          Continue
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-export { ContinueBar }

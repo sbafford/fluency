@@ -3,43 +3,46 @@ import { completeLesson } from '../engine/progress'
 import { indexPack, isUnlocked } from '../engine/session'
 import { useApp } from '../state/app'
 import { href } from '../state/router'
-import { BackIcon } from '../ui/icons'
+import { ActionButton, Actions, FocusFrame } from '../ui/Focus'
 import { Button, LinkButton, Rich } from '../ui/kit'
 import { Player, type SessionSummary } from '../ui/Player'
+import { SessionResult } from '../ui/Summary'
 
 export function LessonScreen({ id }: { id: string }) {
   const { pack, progress, updateProgress } = useApp()
   const index = indexPack(pack)
   const lesson = index.lessons.find((l) => l.id === id)
   const [stage, setStage] = useState<'intro' | 'play' | 'done'>('intro')
+  const [run, setRun] = useState(0)
   const [summary, setSummary] = useState<SessionSummary>()
-  const exercises = lesson?.exercises ?? []
 
-  if (!lesson) {
+  if (!lesson || !isUnlocked(pack, progress, lesson.id)) {
     return (
-      <div className="mx-auto max-w-[720px] px-5 py-16">
-        <p className="mb-4">This lesson doesn't exist. It may have been renamed.</p>
-        <LinkButton href="#/learn">Go to the course</LinkButton>
-      </div>
-    )
-  }
-  if (!isUnlocked(pack, progress, lesson.id)) {
-    return (
-      <div className="mx-auto max-w-[720px] px-5 py-16">
-        <p className="mb-4">Finish the earlier lessons first. This one builds on them.</p>
-        <LinkButton href="#/learn">Go to the course</LinkButton>
-      </div>
+      <FocusFrame kind="Lesson" title="Not Available" closeHref="#/learn">
+        <p className="m-0 text-[17px]">
+          {lesson ? 'Finish the lessons before this one first. It builds on them.' : "This lesson doesn't exist. It may have been renamed."}
+        </p>
+        <div>
+          <LinkButton href="#/learn">Go to Learn</LinkButton>
+        </div>
+      </FocusFrame>
     )
   }
 
   const unit = index.unitOfLesson.get(lesson.id)!
+  const unitNo = pack.units.indexOf(unit) + 1
+  const lessonNo = unit.lessons.indexOf(lesson) + 1
+  const kind = lesson.kind === 'checkpoint' ? `Unit Check · Unit ${unitNo}` : `Lesson ${lessonNo} · Unit ${unitNo}`
   const best = progress.lessons[lesson.id]?.bestScore
 
   if (stage === 'play') {
     return (
       <Player
-        exercises={exercises}
+        key={run}
+        exercises={lesson.exercises}
         lesson={lesson}
+        kind={kind}
+        title={lesson.title}
         closeHref="#/learn"
         onFinish={(s) => {
           const score = s.scored ? s.correct / s.scored : 1
@@ -53,90 +56,85 @@ export function LessonScreen({ id }: { id: string }) {
 
   if (stage === 'done' && summary) {
     const score = summary.scored ? summary.correct / summary.scored : 1
-    const missedItems = summary.missed.map((i) => index.items.get(i)).filter((x) => !!x)
+    const missed = summary.missed.map((i) => index.items.get(i)).filter((x) => !!x)
     const next = index.lessons[index.lessons.indexOf(lesson) + 1]
     const passed = score >= 0.8
     return (
-      <div className="mx-auto max-w-[720px] px-5 pt-10 pb-16">
-        <p className="mb-2 text-[15px] text-ink-2">{lesson.kind === 'checkpoint' ? 'Unit check complete' : 'Lesson complete'}</p>
-        <p className="mb-2 text-[88px] leading-none font-semibold tracking-[-0.04em] tabular-nums">{Math.round(score * 100)}%</p>
-        <p className="mb-8 max-w-[56ch] text-ink-2">
-          {summary.correct} of {summary.scored} right first time.{' '}
-          {passed
-            ? 'Everything you met is now in revision, scheduled to come back just before you are likely to forget it.'
-            : 'Worth repeating once you have revised: aim for 80% or more. Everything you met is already in revision.'}
-        </p>
-
-        {missedItems.length > 0 && (
-          <section className="mb-8">
-            <h2 className="mb-3 text-[19px] font-semibold">Coming back in revision first</h2>
-            <ul className="divide-y divide-line border-y border-line">
-              {missedItems.map((item) => (
-                <li key={item!.id} className="flex flex-wrap items-baseline justify-between gap-x-4 py-3">
-                  <span className="target text-[22px]">{item!.target}</span>
-                  <span className="text-ink-2">{item!.native}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {lesson.culture && (
-          <section className="mb-10 rounded-3xl bg-wash p-6">
-            <p className="mb-1 text-[14px] text-ink-2">Culture</p>
-            <h2 className="mb-3 text-[22px] font-semibold tracking-[-0.01em]">{lesson.culture.title}</h2>
-            <div className="space-y-3 text-[16px] leading-relaxed">
+      <FocusFrame kind={kind} title={lesson.title} closeHref="#/" progress={1}>
+        <SessionResult
+          kicker={lesson.kind === 'checkpoint' ? 'Unit Check Complete' : 'Lesson Complete'}
+          score={score}
+          missed={missed}
+          line={
+            <>
+              {summary.correct} of {summary.scored} right first time.{' '}
+              {passed
+                ? 'Everything you met is now in revision, timed to come back just before you would forget it.'
+                : 'Worth repeating after some revision: aim for 80% or more. Everything you met is already in revision.'}
+            </>
+          }
+        >
+          {lesson.culture && (
+            <section className="mt-4 flex flex-col gap-3 rounded-3xl border border-line bg-raised p-7">
+              <span className="text-[14px] text-ink-2">Culture</span>
+              <h2 className="m-0 text-[22px] font-semibold">{lesson.culture.title}</h2>
               {lesson.culture.body.map((p, i) => (
-                <p key={i}>
+                <p key={i} className="m-0 text-[16px] leading-relaxed">
                   <Rich text={p} />
                 </p>
               ))}
-            </div>
-          </section>
-        )}
-
-        <div className="flex flex-wrap gap-3">
-          {next && <LinkButton href={href({ name: 'lesson', id: next.id })}>Next: {next.title}</LinkButton>}
-          <LinkButton href="#/" variant={next ? 'secondary' : 'primary'}>
-            Back to today
-          </LinkButton>
-          {!passed && (
-            <Button variant="quiet" onClick={() => setStage('play')}>
-              Repeat lesson
-            </Button>
+            </section>
           )}
-        </div>
-      </div>
+        </SessionResult>
+        <Actions>
+          {!passed ? (
+            <Button
+              variant="outline"
+              className="py-[15px]"
+              onClick={() => {
+                setRun((r) => r + 1)
+                setStage('play')
+              }}
+            >
+              Repeat
+            </Button>
+          ) : (
+            <a href="#/" className="px-[18px] py-4 text-[15px] whitespace-nowrap text-ink-2 hover:text-ink">
+              Back to Today
+            </a>
+          )}
+          {next && isUnlocked(pack, progress, next.id) ? (
+            <ActionButton onClick={() => (window.location.hash = href({ name: 'lesson', id: next.id }))}>Next: {next.title}</ActionButton>
+          ) : (
+            <ActionButton onClick={() => (window.location.hash = '#/')}>Done</ActionButton>
+          )}
+        </Actions>
+      </FocusFrame>
     )
   }
 
   return (
-    <div className="mx-auto max-w-[720px] px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-16">
-      <a href="#/learn" className="-ml-2 mb-8 inline-flex items-center gap-2 rounded-full p-2 text-[15px] text-ink-2 hover:text-ink">
-        <BackIcon size={20} /> Course
-      </a>
-      <p className="mb-2 text-[15px] text-ink-2">
-        <span className="target text-[17px]">{unit.title}</span>, {unit.level}
-      </p>
-      <h1 className="target mb-2 text-[56px] leading-[1] md:text-[72px]">{lesson.title}</h1>
-      <p className="mb-8 text-[19px]">{lesson.subtitle}</p>
-
-      <h2 className="mb-3 text-[15px] font-semibold">By the end, you can</h2>
-      <ul className="mb-8 space-y-2">
+    <FocusFrame kind={kind} title={unit.title} closeHref="#/learn">
+      <div className="text-[14px] text-ink-2">
+        {lesson.minutes} Min{lesson.items.length > 0 && ` · ${lesson.items.length} New Words and Phrases`}
+        {best !== undefined && ` · Best ${Math.round(best * 100)}%`}
+      </div>
+      <h1 className="target m-0 text-[clamp(56px,9cqi,96px)] leading-[0.95] tracking-[-0.02em]">{lesson.title}</h1>
+      <p className="m-0 text-[20px] font-medium">{lesson.subtitle}</p>
+      <section className="flex flex-col pt-4">
+        <h2 className="m-0 border-b border-line pb-3 text-[20px] font-semibold">By the End, You Can</h2>
         {lesson.objectives.map((o) => (
-          <li key={o} className="flex gap-3 text-[17px]">
-            <span aria-hidden="true" className="mt-[11px] h-1 w-3 shrink-0 bg-accent" />
+          <div key={o} className="flex items-start gap-3.5 border-b border-line py-3.5 text-[17px] leading-[1.45]">
+            <span aria-hidden="true" className="mt-2 h-2 w-2 shrink-0 rounded-full bg-fill" />
             {o}
-          </li>
+          </div>
         ))}
-      </ul>
-      <p className="mb-8 text-[15px] text-ink-2">
-        About {lesson.minutes} minutes. {lesson.items.length > 0 && `${lesson.items.length} new words and phrases. `}
-        {best !== undefined && `Your best so far: ${Math.round(best * 100)}%.`}
-      </p>
-      <Button onClick={() => setStage('play')} className="w-full sm:w-auto sm:min-w-56">
-        {best !== undefined ? 'Do it again' : lesson.kind === 'checkpoint' ? 'Start the check' : 'Start lesson'}
-      </Button>
-    </div>
+      </section>
+      <Actions>
+        <ActionButton onClick={() => setStage('play')}>
+          {best !== undefined ? 'Do It Again' : lesson.kind === 'checkpoint' ? 'Start Unit Check' : 'Start Lesson'}
+        </ActionButton>
+      </Actions>
+    </FocusFrame>
   )
 }

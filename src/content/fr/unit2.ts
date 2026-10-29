@@ -52,7 +52,7 @@ const lesson1: Lesson = {
   id: 'fr.u2.l1',
   kind: 'lesson',
   title: 'De onze à vingt',
-  subtitle: 'Numbers 11 to 20, and how many',
+  subtitle: 'Numbers 11 to 20, and How Many',
   objectives: ['Count from eleven to twenty.', 'Say what there is with il y a.', 'Ask how many with combien de.'],
   canDo: ['a1.numbers', 'a1.needs'],
   minutes: 12,
@@ -224,7 +224,7 @@ const lesson2: Lesson = {
   id: 'fr.u2.l2',
   kind: 'lesson',
   title: 'Les dizaines',
-  subtitle: 'Tens to a hundred, and saying your age',
+  subtitle: 'Tens to a Hundred, and Saying Your Age',
   objectives: [
     'Count in tens to a hundred, and build numbers in between.',
     'Understand prices and phone numbers read in pairs.',
@@ -443,7 +443,7 @@ const lesson3: Lesson = {
   id: 'fr.u2.l3',
   kind: 'lesson',
   title: 'Quelle heure est-il ?',
-  subtitle: 'Telling the time and timetables',
+  subtitle: 'Telling the Time and Timetables',
   objectives: [
     'Ask the time and tell it, including quarters and halves.',
     'Ask when something starts, and understand the answer.',
@@ -638,7 +638,7 @@ const lesson4: Lesson = {
   id: 'fr.u2.l4',
   kind: 'lesson',
   title: 'Les jours de la semaine',
-  subtitle: 'Days, today and tomorrow, making plans',
+  subtitle: 'Days, Today and Tomorrow, Making Plans',
   objectives: [
     'Name the days of the week.',
     'Say what day it is, and talk about today, tomorrow and tonight.',
@@ -765,7 +765,7 @@ const checkpoint: Lesson = {
   id: 'fr.u2.check',
   kind: 'checkpoint',
   title: 'Bilan : les chiffres et le temps',
-  subtitle: 'Unit check: numbers, times and days, with no support',
+  subtitle: 'Unit Check',
   objectives: ['Show you can handle numbers, times and days in real exchanges.', 'Score 80% or more to mark this unit as demonstrated.'],
   canDo: ['a1.numbers', 'a1.personal', 'a1.announce'],
   minutes: 10,
@@ -858,7 +858,7 @@ export const unit2: Unit = {
   id: 'fr.u2',
   level: 'A1',
   title: 'Les chiffres et le temps',
-  subtitle: 'Numbers to a hundred, telling the time, days of the week',
+  subtitle: 'Numbers to a Hundred, Telling the Time, Days of the Week',
   lessons: [lesson1, lesson2, lesson3, lesson4, checkpoint],
 }
 

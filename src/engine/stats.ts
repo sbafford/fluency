@@ -112,3 +112,44 @@ export function recentDays(p: ProgressState, now: number, n = 14) {
   }
   return out
 }
+
+/** The four strengths shown to the learner, in order. */
+export const STRENGTHS: { status: ItemStatus; label: string; color: string }[] = [
+  { status: 'new', label: 'New', color: 'var(--strength-new)' },
+  { status: 'struggling', label: 'Shaky', color: 'var(--strength-shaky)' },
+  { status: 'learning', label: 'Solid', color: 'var(--strength-solid)' },
+  { status: 'mastered', label: 'Sealed', color: 'var(--strength-sealed)' },
+]
+
+export function strengthLabel(status: ItemStatus): string {
+  return STRENGTHS.find((s) => s.status === status)!.label
+}
+
+/** Short, Title Case names for mistake patterns, for charts. */
+export const ERROR_SHORT: Record<ErrorType, string> = {
+  accent: 'Accents',
+  typo: 'Spelling Slips',
+  article: 'Articles',
+  gender: 'Gender',
+  'word-order': 'Word Order',
+  'missing-word': 'Missing Words',
+  'extra-word': 'Extra Words',
+  'wrong-word': 'Wrong Words',
+  meaning: 'Meaning',
+}
+
+/** Accuracy on the day an item was practised, and on later days (retention). */
+export function accuracySplit(p: ProgressState, now: number) {
+  const since = now - 30 * DAY
+  const recent = p.recent.filter((a) => a.t >= since)
+  const rate = (list: typeof recent) =>
+    list.length >= 5 ? list.filter((a) => a.result !== 'wrong').length / list.length : undefined
+  return { sameDay: rate(recent.filter((a) => !a.retention)), laterDays: rate(recent.filter((a) => a.retention)) }
+}
+
+export function daysPractised(p: ProgressState): number {
+  const keys = new Set<string>()
+  for (const perDevice of Object.values(p.days))
+    for (const [k, d] of Object.entries(perDevice)) if (d.answered > 0) keys.add(k)
+  return keys.size
+}

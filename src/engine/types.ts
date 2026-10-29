@@ -273,6 +273,8 @@ export interface Conversation {
   unitId: string
   level: CefrLevel
   title: string
+  /** A short name for where it happens, e.g. "The Welcome Desk". */
+  place?: string
   setting: string
   register: 'formal' | 'informal'
   partner: Speaker
@@ -403,6 +405,8 @@ export interface Settings {
   voiceB?: string
   /** Show translations under target-language lines by default. */
   showTranslations: boolean
+  /** Light or dark appearance. Unset follows the device. */
+  theme?: 'light' | 'dark'
   /** Id of the private GitHub gist used for sync, once set up. The access token is stored separately and never exported. */
   syncGistId?: string
   lastSyncedAt?: number

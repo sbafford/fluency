@@ -1,32 +1,35 @@
 import { useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from 'react'
 import type { SpeechRate } from '../engine/types'
 import { useApp } from '../state/app'
-import { PlayIcon, SlowIcon } from './icons'
+import { PlayIcon } from './icons'
+
+/*
+ * Shared building blocks, styled from the design handoff.
+ * Buttons: primary (pink), ink, outline, ghost.
+ */
 
 /* ------------------------------------------------------------------ */
 /* Buttons                                                             */
 /* ------------------------------------------------------------------ */
 
-type Variant = 'primary' | 'secondary' | 'quiet'
+export type Variant = 'primary' | 'ink' | 'outline' | 'ghost'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-ink text-paper hover:opacity-85 disabled:opacity-30',
-  secondary: 'border border-ink text-ink hover:bg-wash disabled:opacity-30',
-  quiet: 'text-ink-2 hover:text-ink hover:bg-wash disabled:opacity-30',
+  primary: 'bg-accent text-on-accent font-semibold px-[26px] py-[14px] hover:opacity-90',
+  ink: 'bg-btn text-onbtn font-semibold px-6 py-[14px] hover:opacity-90',
+  outline: 'border-[1.5px] border-ink text-ink font-semibold px-6 py-3 hover:bg-wash',
+  ghost: 'text-ink-2 hover:text-ink px-[18px] py-4',
 }
+
+const base =
+  'inline-flex items-center justify-center gap-2 rounded-full text-[15px] leading-tight whitespace-nowrap transition-[opacity,background-color] disabled:cursor-not-allowed disabled:opacity-40'
 
 export function Button({
   variant = 'primary',
   className = '',
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
-  return (
-    <button
-      type="button"
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold transition-[opacity,background-color] disabled:cursor-not-allowed ${variants[variant]} ${className}`}
-      {...rest}
-    />
-  )
+  return <button type="button" className={`${base} ${variants[variant]} ${className}`} {...rest} />
 }
 
 export function LinkButton({
@@ -41,12 +44,49 @@ export function LinkButton({
   children: ReactNode
 }) {
   return (
-    <a
-      href={href}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold transition-[opacity,background-color] ${variants[variant]} ${className}`}
-    >
+    <a href={href} className={`${base} ${variants[variant]} ${className}`}>
       {children}
     </a>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Segmented control                                                   */
+/* ------------------------------------------------------------------ */
+
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+  size = 'md',
+}: {
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (v: T) => void
+  label: string
+  size?: 'sm' | 'md'
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex gap-1 self-start rounded-full bg-wash p-1">
+      {options.map((o) => {
+        const on = o.value === value
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(o.value)}
+            className={`min-w-[52px] rounded-full text-center ${size === 'sm' ? 'px-4 py-2 text-[14px]' : 'px-4 py-2.5 text-[15px]'} ${
+              on ? 'bg-btn font-semibold text-onbtn' : 'text-ink-2 hover:text-ink'
+            }`}
+          >
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -61,50 +101,37 @@ export function AudioButton({
   rate,
   label = 'Play',
   size = 'md',
-  withSlow = false,
+  tone = 'ink',
 }: {
   text: string
   voice?: 'a' | 'b'
   pitch?: number
   rate?: SpeechRate
   label?: string
-  size?: 'sm' | 'md' | 'lg'
-  withSlow?: boolean
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+  tone?: 'ink' | 'wash' | 'fill'
 }) {
   const { speaker } = useApp()
-  const [playing, setPlaying] = useState<'normal' | 'slow' | null>(null)
-  const play = async (which: 'normal' | 'slow') => {
-    setPlaying(which)
-    await speaker.speak(text, { voice, pitch, rate: which === 'slow' ? 'slow' : rate })
-    setPlaying(null)
+  const [playing, setPlaying] = useState(false)
+  const play = async () => {
+    setPlaying(true)
+    await speaker.speak(text, { voice, pitch, rate })
+    setPlaying(false)
   }
-  const dims = { sm: 'h-9 w-9', md: 'h-11 w-11', lg: 'h-16 w-16' }[size]
-  const icon = { sm: 18, md: 20, lg: 28 }[size]
+  const dims = { sm: 'h-10 w-10', md: 'h-11 w-11', lg: 'h-14 w-14', xl: 'h-[72px] w-[72px]' }[size]
+  const icon = { sm: 18, md: 20, lg: 26, xl: 30 }[size]
+  const colours = playing
+    ? 'bg-fill text-feedback-on'
+    : { ink: 'bg-btn text-onbtn', wash: 'bg-wash text-ink', fill: 'bg-fill text-feedback-on' }[tone]
   return (
-    <span className="inline-flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => play('normal')}
-        aria-label={`${label}: ${text}`}
-        className={`${dims} inline-flex shrink-0 items-center justify-center rounded-full transition-colors ${
-          playing === 'normal' ? 'bg-accent text-on-accent' : 'bg-ink text-paper hover:opacity-85'
-        }`}
-      >
-        <PlayIcon size={icon} />
-      </button>
-      {withSlow && (
-        <button
-          type="button"
-          onClick={() => play('slow')}
-          aria-label={`Play slowly: ${text}`}
-          className={`${dims} inline-flex shrink-0 items-center justify-center rounded-full border transition-colors ${
-            playing === 'slow' ? 'border-accent bg-accent text-on-accent' : 'border-line text-ink hover:border-ink'
-          }`}
-        >
-          <SlowIcon size={icon} />
-        </button>
-      )}
-    </span>
+    <button
+      type="button"
+      onClick={play}
+      aria-label={`${label}: ${text}`}
+      className={`${dims} ${colours} inline-flex shrink-0 items-center justify-center rounded-full transition-colors hover:opacity-90`}
+    >
+      <PlayIcon size={icon} />
+    </button>
   )
 }
 
@@ -112,14 +139,14 @@ export function AudioButton({
 /* Text                                                                */
 /* ------------------------------------------------------------------ */
 
-/** Renders *word* as target-language emphasis inside explanatory text. */
+/** Renders *word* as French, in the serif, inside explanatory text. */
 export function Rich({ text }: { text: string }) {
   const parts = text.split(/(\*[^*]+\*)/g)
   return (
     <>
       {parts.map((p, i) =>
         p.startsWith('*') && p.endsWith('*') ? (
-          <em key={i} className="target text-[1.12em] not-italic font-medium">
+          <em key={i} className="target text-[1.18em] not-italic">
             {p.slice(1, -1)}
           </em>
         ) : (
@@ -130,52 +157,50 @@ export function Rich({ text }: { text: string }) {
   )
 }
 
-export function PageHeader({ title, aside, children }: { title: string; aside?: ReactNode; children?: ReactNode }) {
+export function PageTitle({ children }: { children: ReactNode }) {
   return (
-    <header className="mb-8 pt-2 md:pt-8">
-      <div className="flex items-start justify-between gap-4">
-        <h1 className="text-[40px] leading-[1.05] font-semibold tracking-[-0.03em] md:text-[56px]">{title}</h1>
-        {aside}
-      </div>
-      {children && <div className="mt-3 max-w-[60ch] text-ink-2">{children}</div>}
-    </header>
+    <h1 className="target m-0 text-[clamp(56px,7cqi,88px)] leading-[0.95] tracking-[-0.02em]">{children}</h1>
   )
 }
 
-export function SectionTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+export function SectionHead({ title, aside, icon }: { title: string; aside?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-4">
-      <h2 className="text-[19px] font-semibold tracking-[-0.01em]">{children}</h2>
-      {aside && <div className="text-sm text-ink-2">{aside}</div>}
+    <div className="flex items-baseline justify-between gap-3 border-b border-line pb-3">
+      <h2 className="m-0 flex items-center gap-2.5 text-[20px] font-semibold">
+        {icon}
+        {title}
+      </h2>
+      {aside !== undefined && <span className="text-[13px] text-ink-2">{aside}</span>}
     </div>
   )
 }
 
-export function Bar({ value, tone = 'accent', label }: { value: number; tone?: 'accent' | 'ink' | 'good'; label?: string }) {
+export function Pill({ children, tone = 'wash' }: { children: ReactNode; tone?: 'wash' | 'shaky' | 'solid' | 'sealed' | 'new' }) {
+  const tones = {
+    wash: 'bg-wash text-ink-2 font-normal',
+    new: 'bg-strength-new text-feedback-on font-bold',
+    shaky: 'bg-strength-shaky text-feedback-on font-bold',
+    solid: 'bg-strength-solid text-feedback-on font-bold',
+    sealed: 'bg-strength-sealed text-feedback-on font-bold',
+  }
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[12px] leading-none ${tones[tone]}`}>{children}</span>
+}
+
+export function Meter({ value, color = 'var(--fill)', height = 8, label }: { value: number; color?: string; height?: number; label?: string }) {
   const pct = Math.round(Math.max(0, Math.min(1, value)) * 100)
-  const fill = { accent: 'bg-accent', ink: 'bg-ink', good: 'bg-good' }[tone]
   return (
-    <div
-      className="h-1.5 w-full overflow-hidden rounded-full bg-line"
+    <span
+      className="block w-full overflow-hidden rounded-full bg-wash"
+      style={{ height }}
       role="progressbar"
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={label}
     >
-      <div className={`h-full rounded-full ${fill} transition-[width] duration-300`} style={{ width: `${pct}%` }} />
-    </div>
+      <span className="block h-full rounded-full transition-[width] duration-300" style={{ width: `${pct}%`, background: color }} />
+    </span>
   )
-}
-
-export function Tag({ children, tone = 'plain' }: { children: ReactNode; tone?: 'plain' | 'accent' | 'good' | 'bad' }) {
-  const tones = {
-    plain: 'bg-wash text-ink-2',
-    accent: 'bg-accent-wash text-accent',
-    good: 'bg-good-wash text-good',
-    bad: 'bg-bad-wash text-bad',
-  }
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12.5px] font-medium ${tones[tone]}`}>{children}</span>
 }
 
 /* ------------------------------------------------------------------ */
@@ -183,7 +208,7 @@ export function Tag({ children, tone = 'plain' }: { children: ReactNode; tone?: 
 /* ------------------------------------------------------------------ */
 
 /** Buttons that insert accented characters at the cursor. */
-export function AccentBar({
+export function AccentKeys({
   inputRef,
   value,
   onChange,
@@ -197,8 +222,7 @@ export function AccentBar({
     const el = inputRef.current
     const start = el?.selectionStart ?? value.length
     const end = el?.selectionEnd ?? value.length
-    const next = value.slice(0, start) + ch + value.slice(end)
-    onChange(next)
+    onChange(value.slice(0, start) + ch + value.slice(end))
     requestAnimationFrame(() => {
       el?.focus()
       el?.setSelectionRange(start + ch.length, start + ch.length)
@@ -210,10 +234,10 @@ export function AccentBar({
         <button
           key={ch}
           type="button"
-          // Keep focus in the text field so the mobile keyboard stays open.
+          // Keep focus in the text field so the phone keyboard stays open.
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => insert(ch)}
-          className="target h-9 min-w-9 rounded-lg border border-line px-2 text-[19px] leading-none hover:border-ink"
+          className="target grid h-11 min-w-11 select-none place-items-center rounded-xl border border-line text-[22px] hover:border-ink"
         >
           {ch}
         </button>
@@ -223,5 +247,9 @@ export function AccentBar({
 }
 
 export function pct(n: number | undefined): string {
-  return n === undefined ? 'n/a' : `${Math.round(n * 100)}%`
+  return n === undefined ? '–' : `${Math.round(n * 100)}%`
+}
+
+export function minutesLabel(n: number): string {
+  return `${n} Min`
 }

@@ -13,14 +13,14 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'fluency',
-        short_name: 'fluency',
+        name: 'fluéncy',
+        short_name: 'fluéncy',
         description: 'A personal language-learning app.',
         start_url: './',
         scope: './',
         display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#000000',
+        background_color: '#efe7dd',
+        theme_color: '#efe7dd',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

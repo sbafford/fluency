@@ -22,7 +22,7 @@ A running record of significant choices, so they can be revisited deliberately.
 
 **Faith and culture pathway: slot reserved, not built.** `LanguagePack.pathways` takes optional units without touching the core course. Nothing in the core lessons depends on it.
 
-**AI tutor: interface only.** `src/tutor/provider.ts` defines `TutorProvider`; the scripted tutor implements it. A Claude-backed tutor would need a small backend so the API key never reaches the browser. Claude subscriptions, including Max, don't include API usage: the API is billed separately per token, so check current pricing before building it.
+**AI tutor: interface only.** `src/tutor/provider.ts` defines `TutorProvider`; the scripted tutor implements it. A Claude-backed tutor would need a small backend so the API key never reaches the browser. Max 5x includes US$100 of Claude API credit a month (claimed by linking a Claude Console organisation; no rollover, and requests stop rather than charging when it runs out), so the tutor can run on that. The subscription login itself can't be used inside the app; it needs an API key held by the backend.
 
 **Content is original.** Dialogues, exercises and descriptors were written for this app. Level descriptors are guided by the public CEFR descriptors, not copied from any course.
 
@@ -44,4 +44,3 @@ A running record of significant choices, so they can be revisited deliberately.
 - Sync needs a GitHub token on each device. If two devices review the same item between syncs, only the later review's scheduling is kept.
 - Dates (months, "le 3 mars") are not taught yet.
 - Lessons 3 and 4 are on the long side (20+ steps); worth splitting once more content exists.
-- The accent colour is a placeholder until the personal palette is supplied.

@@ -1,138 +1,151 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens.
+ * Design tokens, from the Fluency design handoff (October 2026).
  *
- * Black and white carry the interface; one accent marks progress, focus and
- * the active place. The accent below is a placeholder: replace --accent and
- * --accent-wash with your own palette and everything follows.
+ * Light is the default. Dark applies when the learner picks it in Settings
+ * ([data-theme="dark"]) or, with no choice made, when the device is in dark mode.
  */
 :root {
-  --paper: #ffffff;
-  --ink: #000000;
-  --ink-2: #505050;
-  --ink-3: #8c8c8c;
-  --line: #e4e4e4;
-  --wash: #f4f4f4;
-  --raised: #ffffff;
+  --paper: #efe7dd;
+  --raised: #fbf6f0;
+  --ink: #241c18;
+  --ink-2: #5a4b44;
+  --ink-3: #8d7d74;
+  --line: rgba(36, 28, 24, 0.25);
+  --wash: rgba(36, 28, 24, 0.07);
+  --accent: #b5486b;
+  --on-accent: #fff6f8;
+  --fill: #d97a97;
+  --btn: #241c18;
+  --onbtn: #efe7dd;
+  --sync: #4f8a5e;
 
-  --accent: #4655f0; /* placeholder: swap for your palette */
-  --accent-wash: #eceefe;
-  --on-accent: #ffffff;
-
-  --good: #0b7a3e;
-  --good-wash: #e7f4ec;
-  --near: #8a5a00;
-  --near-wash: #fbf1dc;
-  --bad: #c0261a;
-  --bad-wash: #fbe9e7;
-
-  --rail: #000000;
-  --on-rail: #ffffff;
-  --on-rail-dim: #9a9a9a;
+  /* Fixed in both themes */
+  --pink: #d97a97;
+  --pink-hover: #efa9bd;
+  --yellow: #d9a45e;
+  --feedback-on: #241c18;
+  --strength-new: #8d7d74;
+  --strength-shaky: #d9a45e;
+  --strength-solid: #c98ea3;
+  --strength-sealed: #7fae8a;
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --paper: #000000;
-    --ink: #ffffff;
-    --ink-2: #b4b4b4;
-    --ink-3: #7a7a7a;
-    --line: #262626;
-    --wash: #141414;
-    --raised: #0d0d0d;
-    --accent: #8d97ff;
-    --accent-wash: #191c3a;
-    --on-accent: #000000;
-    --good: #5fd08e;
-    --good-wash: #0d2418;
-    --near: #f0b54a;
-    --near-wash: #2a1f08;
-    --bad: #ff7b6e;
-    --bad-wash: #2c0f0c;
-    --rail: #ffffff;
-    --on-rail: #000000;
-    --on-rail-dim: #666666;
+    --paper: #0d0a09;
+    --raised: #171211;
+    --ink: #efe7dd;
+    --ink-2: #b9aca3;
+    --ink-3: #8d7d74;
+    --line: rgba(255, 255, 255, 0.09);
+    --wash: rgba(255, 255, 255, 0.06);
+    --accent: #d97a97;
+    --on-accent: #241c18;
+    --fill: #d97a97;
+    --btn: #efe7dd;
+    --onbtn: #241c18;
+    --sync: #7fae8a;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --paper: #000000;
-  --ink: #ffffff;
-  --ink-2: #b4b4b4;
-  --ink-3: #7a7a7a;
-  --line: #262626;
-  --wash: #141414;
-  --raised: #0d0d0d;
-  --accent: #8d97ff;
-  --accent-wash: #191c3a;
-  --on-accent: #000000;
-  --good: #5fd08e;
-  --good-wash: #0d2418;
-  --near: #f0b54a;
-  --near-wash: #2a1f08;
-  --bad: #ff7b6e;
-  --bad-wash: #2c0f0c;
-  --rail: #ffffff;
-  --on-rail: #000000;
-  --on-rail-dim: #666666;
+  --paper: #0d0a09;
+  --raised: #171211;
+  --ink: #efe7dd;
+  --ink-2: #b9aca3;
+  --ink-3: #8d7d74;
+  --line: rgba(255, 255, 255, 0.09);
+  --wash: rgba(255, 255, 255, 0.06);
+  --accent: #d97a97;
+  --on-accent: #241c18;
+  --fill: #d97a97;
+  --btn: #efe7dd;
+  --onbtn: #241c18;
+  --sync: #7fae8a;
   color-scheme: dark;
 }
 
 @theme inline {
   --color-paper: var(--paper);
+  --color-raised: var(--raised);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
   --color-line: var(--line);
   --color-wash: var(--wash);
-  --color-raised: var(--raised);
   --color-accent: var(--accent);
-  --color-accent-wash: var(--accent-wash);
   --color-on-accent: var(--on-accent);
-  --color-good: var(--good);
-  --color-good-wash: var(--good-wash);
-  --color-near: var(--near);
-  --color-near-wash: var(--near-wash);
-  --color-bad: var(--bad);
-  --color-bad-wash: var(--bad-wash);
-  --color-rail: var(--rail);
-  --color-on-rail: var(--on-rail);
-  --color-on-rail-dim: var(--on-rail-dim);
+  --color-fill: var(--fill);
+  --color-btn: var(--btn);
+  --color-onbtn: var(--onbtn);
+  --color-sync: var(--sync);
+  --color-pink: var(--pink);
+  --color-pink-hover: var(--pink-hover);
+  --color-yellow: var(--yellow);
+  --color-feedback-on: var(--feedback-on);
+  --color-strength-new: var(--strength-new);
+  --color-strength-shaky: var(--strength-shaky);
+  --color-strength-solid: var(--strength-solid);
+  --color-strength-sealed: var(--strength-sealed);
 
-  /* UI face and the face for the language being learned. */
-  --font-sans: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-target: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  /* Archivo for English and numerals; Instrument Serif for French and the logo. */
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-target: 'Instrument Serif', Georgia, serif;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  background: var(--paper);
 }
 
 body {
+  margin: 0;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
-  font-feature-settings: 'ss01';
   -webkit-font-smoothing: antialiased;
 }
 
-/* Text in the language being learned is always set in the target face. */
-.target {
+/* Fluid sizes use container query units, so the app root is the container. */
+#root {
+  container-type: inline-size;
+}
+
+/* Every French string is set in the serif. */
+@utility target {
   font-family: var(--font-target);
-  font-feature-settings: 'kern', 'liga', 'onum';
-  letter-spacing: 0.005em;
+  font-weight: 400;
+}
+
+/* Wide numerals for stats. */
+@utility stat {
+  font-weight: 700;
+  font-stretch: 120%;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    cursor: pointer;
+  }
 }
 
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -153,12 +166,12 @@ body {
   }
 }
 .sheet-rise {
-  animation: rise 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--fill) 55%, transparent);
   }
   100% {
     box-shadow: 0 0 0 14px transparent;

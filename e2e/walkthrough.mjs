@@ -68,7 +68,7 @@ await page.screenshot({ path: `${out}/03-learn.png`, fullPage: true })
 async function runLesson(lessonTitle, shots, { smart = true } = {}) {
   let n = 0
   for (let guard = 0; guard < 120; guard++) {
-    if (await page.locator('text=/Lesson complete|Unit check complete|Revision complete|Practice complete/').count()) return n
+    if (await page.locator('text=/Lesson Complete|Unit Check Complete|Revision Complete|Practice Complete/').count()) return n
     const vis = async (sel) => (await page.locator(sel).count()) > 0 && (await page.locator(sel).first().isVisible())
     if (shots.has(n)) await page.screenshot({ path: `${out}/${lessonTitle}-${String(n).padStart(2, '0')}.png` })
     n++
@@ -77,12 +77,12 @@ async function runLesson(lessonTitle, shots, { smart = true } = {}) {
       await page.locator('button:has-text("Continue")').last().click()
       continue
     }
-    if (await vis('button:has-text("I said it comfortably")')) {
-      await page.click('button:has-text("I said it comfortably")')
+    if (await vis('button:has-text("I Said It Comfortably")')) {
+      await page.click('button:has-text("I Said It Comfortably")')
       continue
     }
-    if (await vis('text=Build the sentence in French')) {
-      const tiles = page.locator('div.mb-6.flex.flex-wrap button:not([disabled])')
+    if (await vis('text=Build the Sentence')) {
+      const tiles = page.locator('main div.flex.flex-wrap.gap-2 > button.border:not([disabled])')
       await tiles.first().click()
       await page.click('button:has-text("Check")')
       continue
@@ -104,15 +104,16 @@ async function runLesson(lessonTitle, shots, { smart = true } = {}) {
 }
 
 await page.click('text=Bonjour !')
-await page.waitForSelector('text=By the end, you can')
+await page.waitForSelector('text=By the End, You Can')
 await page.screenshot({ path: `${out}/04-lesson-intro.png` })
-await page.click('button:has-text("Start lesson")')
+await page.click('button:has-text("Start Lesson")')
 const steps = await runLesson('l1', new Set([0, 1, 2, 3, 5, 6, 9, 12, 14, 16, 18]))
 await page.screenshot({ path: `${out}/05-lesson-done.png`, fullPage: true })
 console.log('lesson 1 steps:', steps)
 
 // Today after the lesson.
-await page.click('text=Back to today')
+await page.click('button:has-text("Next:"), button:has-text("Done")').catch(() => {})
+await page.goto(BASE)
 await page.waitForSelector('h1')
 await page.screenshot({ path: `${out}/06-today-after.png`, fullPage: true })
 
@@ -121,42 +122,46 @@ await page.clock.setFixedTime(new Date('2026-10-28T08:30:00'))
 await page.reload()
 await page.waitForSelector('h1')
 await page.screenshot({ path: `${out}/07-today-nextday.png`, fullPage: true })
-const due = await page.locator('text=/to revise/').first().textContent()
+const due = await page.locator('text=/Words and Phrases|Word or Phrase/').first().textContent()
 console.log('due next day:', due)
-await page.click('text=Start revision')
+await page.click('a:has-text("Revise")')
 await runLesson('review', new Set([0, 3, 6]))
 await page.screenshot({ path: `${out}/08-review-done.png`, fullPage: true })
 
 // Listening
 await page.goto(BASE + '#/listen/fr.u1.listen.hotel')
-await page.waitForSelector('text=Questions')
-await page.click('text=Show transcript')
+await page.waitForSelector('text=Question 1 of 4')
+await page.click('text=Show Transcript')
 await page.screenshot({ path: `${out}/09-listening.png`, fullPage: true })
-for (const t of ['Evening', 'Zurich', 'Swiss']) await page.click(`button:has-text("${t}")`)
+for (const t of ['Evening', 'Zurich', 'Swiss']) {
+  await page.click(`main button:has-text("${t}")`)
+  await page.click('button:has-text("Next Question")')
+}
 await page.fill('input[aria-label="What is her room number? Type the number."]', '10')
-await page.click('text=Check answers')
+await page.click('button:has-text("Check")')
+await page.click('button:has-text("Finish")')
 await page.screenshot({ path: `${out}/10-listening-checked.png`, fullPage: true })
-console.log('listening:', await page.locator('text=/of 4 right/').textContent())
+console.log('listening:', (await page.locator('.stat').first().textContent()).trim())
 
 // Conversation
 await page.goto(BASE + '#/talk/fr.u1.talk.arrival')
-await page.waitForSelector('text=Your turn')
+await page.waitForSelector('text=Your Turn')
 await page.fill('input[aria-label="Your reply"]', 'Bonjour, je mapelle Sav')
-await page.click('button[aria-label="Send"]')
+await page.click('button:has-text("Send")')
 await page.screenshot({ path: `${out}/11-talk-feedback.png` })
 await page.fill('input[aria-label="Your reply"]', "Bonjour, je m'appelle Sav")
-await page.click('button[aria-label="Send"]')
+await page.click('button:has-text("Send")')
 await page.fill('input[aria-label="Your reply"]', "Je viens d'Australie")
-await page.click('button[aria-label="Send"]')
+await page.click('button:has-text("Send")')
 await page.fill('input[aria-label="Your reply"]', "Tu habites à Perth ? J'habite à Perth.")
-await page.click('button[aria-label="Send"]')
+await page.click('button:has-text("Send")')
 await page.fill('input[aria-label="Your reply"]', 'Merci, au revoir !')
-await page.click('button[aria-label="Send"]')
-await page.waitForSelector('text=Conversation complete')
+await page.click('button:has-text("Send")')
+await page.waitForSelector('text=Conversation Complete')
 await page.screenshot({ path: `${out}/12-talk-done.png`, fullPage: true })
 
 await page.goto(BASE + '#/progress')
-await page.waitForSelector('text=Skills')
+await page.waitForSelector('text=Your Words')
 await page.screenshot({ path: `${out}/13-progress.png`, fullPage: true })
 await page.goto(BASE + '#/settings')
 await page.screenshot({ path: `${out}/14-settings.png`, fullPage: true })
@@ -169,7 +174,7 @@ await page.goto(BASE)
 await page.waitForSelector('h1')
 await page.screenshot({ path: `${out}/16-desktop-today.png`, fullPage: true })
 await page.goto(BASE + '#/lesson/fr.u1.l2')
-await page.click('button:has-text("Start lesson")')
+await page.click('button:has-text("Start Lesson")')
 await page.click('button:has-text("Continue")')
 await page.click('button:has-text("Continue")')
 await page.screenshot({ path: `${out}/17-desktop-exercise.png` })
@@ -183,7 +188,7 @@ await page.setViewportSize({ width: 390, height: 844 })
 await page.goto(BASE + '#/settings')
 await page.fill('input[aria-label="GitHub token"]', 'test-token')
 await page.click('button:has-text("Connect")')
-await page.locator('p', { hasText: /^Synced / }).waitFor()
+await page.locator('span', { hasText: /^Last Synced / }).first().waitFor()
 await page.screenshot({ path: `${out}/18-sync-connected.png`, fullPage: true })
 console.log('gists after first sync:', gists.size)
 
@@ -199,10 +204,10 @@ await page2.addInitScript(() => {
 await page2.goto(BASE + '#/settings')
 await page2.fill('input[aria-label="GitHub token"]', 'test-token')
 await page2.click('button:has-text("Connect")')
-await page2.locator('p', { hasText: /^Synced / }).waitFor()
+await page2.locator('span', { hasText: /^Last Synced / }).first().waitFor()
 await page2.goto(BASE + '#/learn')
 await page2.waitForSelector('text=Premiers pas')
-const done2 = await page2.locator('text=/Best \\d+%/').count()
+const done2 = await page2.locator('text=/^\\d+%$/').count()
 console.log('device 2 sees completed lessons:', done2, 'gists:', gists.size)
 await page2.goto(BASE)
 await page2.waitForSelector('h1')
@@ -219,18 +224,18 @@ await page2.evaluate(() => {
 })
 await page2.goto(BASE + '#/lesson/fr.u2.l3')
 await page2.reload()
-await page2.waitForSelector('text=By the end, you can')
+await page2.waitForSelector('text=By the End, You Can')
 await page2.screenshot({ path: `${out}/20-u2-intro.png` })
-await page2.click('button:has-text("Start lesson")')
+await page2.click('button:has-text("Start Lesson")')
 const runner = async () => {
   for (let guard = 0; guard < 150; guard++) {
-    if (await page2.locator('text=/Lesson complete/').count()) return guard
+    if (await page2.locator('text=/Lesson Complete/').count()) return guard
     const vis = async (sel) => (await page2.locator(sel).count()) > 0 && (await page2.locator(sel).first().isVisible())
     if (guard === 7 || guard === 12) await page2.screenshot({ path: `${out}/21-u2-step-${guard}.png` })
     if (await vis('button:has-text("Continue")')) { await page2.locator('button:has-text("Continue")').last().click(); continue }
-    if (await vis('button:has-text("I said it comfortably")')) { await page2.click('button:has-text("I said it comfortably")'); continue }
-    if (await vis('text=Build the sentence in French')) {
-      await page2.locator('div.mb-6.flex.flex-wrap button:not([disabled])').first().click()
+    if (await vis('button:has-text("I Said It Comfortably")')) { await page2.click('button:has-text("I Said It Comfortably")'); continue }
+    if (await vis('text=Build the Sentence')) {
+      await page2.locator('main div.flex.flex-wrap.gap-2 > button.border:not([disabled])').first().click()
       await page2.click('button:has-text("Check")')
       continue
     }

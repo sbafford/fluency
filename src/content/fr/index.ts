@@ -12,7 +12,7 @@ export const french: LanguagePack = {
   locale: 'fr-FR',
   // Higher-quality voices commonly installed on Apple, Google and Microsoft systems.
   preferredVoices: ['Amélie', 'Audrey', 'Thomas', 'Marie', 'Google français', 'Microsoft Denise', 'Microsoft Henri', 'Daniel'],
-  specialCharacters: ['é', 'è', 'ê', 'à', 'â', 'ç', 'ô', 'î', 'ï', 'ù', 'û', 'ë', 'œ'],
+  specialCharacters: ['é', 'è', 'ê', 'à', 'â', 'ç', 'ô', 'œ'],
   articles: { groups: [['le', 'la', 'les', "l'"], ['un', 'une', 'des'], ['du', 'de la', "de l'"]] },
   levels,
   units: [unit1, unit2],

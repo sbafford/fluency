@@ -1,36 +1,65 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { exportData, importData } from '../engine/storage'
-import type { SpeechRate } from '../engine/types'
 import { recognitionSupported } from '../speech/recognition'
 import { ttsSupported, voicesFor, voicesReady } from '../speech/tts'
 import { useApp } from '../state/app'
 import { getToken, setToken } from '../sync/gist'
-import { Button, PageHeader, SectionTitle } from '../ui/kit'
+import { Button, PageTitle, Segmented } from '../ui/kit'
+import { syncText } from '../ui/SyncBadge'
 
-function Row({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
+const field = 'min-h-12 rounded-[14px] border-[1.5px] border-line bg-raised px-3.5 outline-none focus:border-ink'
+
+function Setting({ label, help, children }: { label: string; help?: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-4">
-      <div className="min-w-[14rem] flex-1">
-        <p className="text-[16px] font-medium">{label}</p>
-        {help && <p className="max-w-[52ch] text-[14px] text-ink-2">{help}</p>}
-      </div>
-      <div className="shrink-0">{children}</div>
+    <div className="flex flex-col gap-2">
+      <span className="text-[15px] font-semibold">{label}</span>
+      {help && <span className="text-[14px] text-ink-2">{help}</span>}
+      {children}
     </div>
   )
 }
 
-const selectCls = 'min-h-11 rounded-xl border-[1.5px] border-line bg-raised px-3 text-[15px] outline-none focus:border-ink max-w-[15rem]'
+function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3.5 border-t border-line pt-7">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="m-0 text-[20px] font-semibold">{title}</h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function useResolvedTheme(choice: 'light' | 'dark' | undefined): 'light' | 'dark' {
+  const [system, setSystem] = useState(() => (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'))
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!mq) return
+    const on = () => setSystem(mq.matches ? 'dark' : 'light')
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return choice ?? (system as 'light' | 'dark')
+}
 
 export function Settings() {
   const { data, pack, settings, updateSettings, replaceData, resetProgress, speaker, sync, syncNow } = useApp()
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [message, setMessage] = useState<{ tone: 'good' | 'bad'; text: string }>()
+  const [message, setMessage] = useState<{ ok: boolean; text: string }>()
   const fileRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState(settings.learnerName)
+  const [token, setTokenValue] = useState('')
+  const theme = useResolvedTheme(settings.theme)
+  const connected = sync.state !== 'off' && !!getToken()
 
   useEffect(() => {
     void voicesReady().then(() => setVoices(voicesFor(pack.locale, pack.preferredVoices)))
   }, [pack])
+
+  const saveName = () => {
+    if (name.trim() !== settings.learnerName) updateSettings({ learnerName: name.trim() })
+  }
 
   const download = () => {
     const blob = new Blob([exportData(data)], { type: 'application/json' })
@@ -40,7 +69,7 @@ export function Settings() {
     a.download = `fluency-progress-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    setMessage({ tone: 'good', text: 'Backup downloaded.' })
+    setMessage({ ok: true, text: 'Backup downloaded.' })
   }
 
   const upload = async (file: File) => {
@@ -48,66 +77,80 @@ export function Settings() {
       const next = importData(await file.text(), data.deviceId)
       if (!window.confirm('Replace your current progress and settings with this backup?')) return
       replaceData(next)
-      setMessage({ tone: 'good', text: 'Backup imported.' })
+      setMessage({ ok: true, text: 'Backup imported.' })
     } catch (err) {
-      setMessage({ tone: 'bad', text: err instanceof Error ? err.message : 'That file could not be imported.' })
+      setMessage({ ok: false, text: err instanceof Error ? err.message : 'That file could not be imported.' })
     }
   }
 
-  return (
-    <div>
-      <PageHeader title="settings" />
+  const status = syncText(sync.state, sync.pending, settings.lastSyncedAt, true)
 
-      <section className="mb-10">
-        <SectionTitle>You</SectionTitle>
-        <Row label="Name" help="Used in speaking and conversation practice.">
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              updateSettings({ learnerName: name.trim() })
-            }}
-          >
-            <input value={name} onChange={(e) => setName(e.target.value)} className={selectCls} aria-label="Name" />
-            <Button type="submit" variant="secondary" className="min-h-11 px-4" disabled={name.trim() === settings.learnerName}>
-              Save
-            </Button>
-          </form>
-        </Row>
-        <Row label="Daily goal" help="Answers per day. A steady small goal beats an ambitious one you skip.">
-          <select value={settings.dailyGoal} onChange={(e) => updateSettings({ dailyGoal: Number(e.target.value) })} className={selectCls}>
-            {[10, 20, 30, 50].map((n) => (
-              <option key={n} value={n}>
-                {n} answers (about {Math.round(n / 2.5)} min)
-              </option>
-            ))}
-          </select>
-        </Row>
-        <Row label="Translations" help="Show English under French lines by default in dialogues and conversations.">
+  return (
+    <div className="flex max-w-[720px] flex-col gap-10">
+      <PageTitle>Settings</PageTitle>
+
+      <section className="flex flex-col gap-[22px]">
+        <label className="flex flex-col gap-2">
+          <span className="text-[15px] font-semibold">Your Name</span>
+          <span className="text-[14px] text-ink-2">Used in speaking and conversation practice.</span>
           <input
-            type="checkbox"
-            checked={settings.showTranslations}
-            onChange={(e) => updateSettings({ showTranslations: e.target.checked })}
-            className="h-5 w-5 accent-[var(--accent)]"
-            aria-label="Show translations by default"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={(e) => e.key === 'Enter' && saveName()}
+            autoComplete="given-name"
+            className={`${field} text-[17px]`}
           />
-        </Row>
+        </label>
+        <Setting label="Daily Goal" help="Answers per Day">
+          <Segmented
+            label="Daily goal"
+            value={String(settings.dailyGoal)}
+            onChange={(v) => updateSettings({ dailyGoal: Number(v) })}
+            options={['10', '20', '30', '50'].map((v) => ({ value: v, label: v }))}
+          />
+        </Setting>
+        <Setting label="Speech Speed">
+          <Segmented
+            label="Speech speed"
+            value={settings.rate === 'slow' ? 'slow' : 'normal'}
+            onChange={(v) => updateSettings({ rate: v })}
+            options={[
+              { value: 'slow', label: 'Slower' },
+              { value: 'normal', label: 'Natural' },
+            ]}
+          />
+        </Setting>
+        <Setting label="Appearance">
+          <Segmented
+            label="Appearance"
+            value={theme}
+            onChange={(v) => updateSettings({ theme: v })}
+            options={[
+              { value: 'light', label: 'Light' },
+              { value: 'dark', label: 'Dark' },
+            ]}
+          />
+        </Setting>
+        <Setting label="Translations" help="Show English under French in dialogues and conversations from the start.">
+          <Segmented
+            label="Translations"
+            value={settings.showTranslations ? 'on' : 'off'}
+            onChange={(v) => updateSettings({ showTranslations: v === 'on' })}
+            options={[
+              { value: 'off', label: 'French Only' },
+              { value: 'on', label: 'With English' },
+            ]}
+          />
+        </Setting>
       </section>
 
-      <section className="mb-10">
-        <SectionTitle>Audio and speech</SectionTitle>
-        {!ttsSupported() && <p className="mb-3 text-[15px] text-bad">This browser has no text-to-speech, so audio won't play.</p>}
-        <Row label="Speaking speed" help="Default speed for audio. Every play button also has a slow option.">
-          <select value={settings.rate} onChange={(e) => updateSettings({ rate: e.target.value as SpeechRate })} className={selectCls}>
-            <option value="slow">Slow</option>
-            <option value="normal">Normal</option>
-            <option value="natural">Natural pace</option>
-          </select>
-        </Row>
+      <Section title="Voices and Speaking">
+        {!ttsSupported() && <p className="m-0 text-[15px] text-accent">This browser has no text-to-speech, so audio won't play.</p>}
         {(['voiceA', 'voiceB'] as const).map((key, i) => (
-          <Row
+          <Setting
             key={key}
-            label={i === 0 ? 'Main voice' : 'Second voice'}
+            label={i === 0 ? 'Main Voice' : 'Second Voice'}
             help={
               voices.length
                 ? i === 0
@@ -116,12 +159,13 @@ export function Settings() {
                 : `No ${pack.name} voices found. On a Mac or iPhone, add one in system settings under Spoken Content.`
             }
           >
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2.5">
               <select
                 value={settings[key] ?? ''}
                 onChange={(e) => updateSettings({ [key]: e.target.value || undefined })}
-                className={selectCls}
+                className={`${field} min-w-0 flex-[1_1_240px] text-[15px]`}
                 disabled={!voices.length}
+                aria-label={i === 0 ? 'Main voice' : 'Second voice'}
               >
                 <option value="">Automatic</option>
                 {voices.map((v) => (
@@ -130,62 +174,111 @@ export function Settings() {
                   </option>
                 ))}
               </select>
-              <Button
-                variant="secondary"
-                className="min-h-11 px-4"
-                onClick={() => speaker.speak('Bonjour, je suis votre voix.', { voice: i === 0 ? 'a' : 'b' })}
-              >
+              <Button variant="outline" onClick={() => speaker.speak('Bonjour, je suis votre voix.', { voice: i === 0 ? 'a' : 'b' })}>
                 Test
               </Button>
             </div>
-          </Row>
+          </Setting>
         ))}
-        <Row
-          label="Speech input"
+        <Setting
+          label="Speech Input"
           help={
             recognitionSupported()
-              ? 'Speak your answers. In Chrome, audio is sent to Google for recognition and needs a connection.'
+              ? 'Speak your answers. In Chrome, audio goes to Google for recognition and needs a connection.'
               : "Not supported in this browser (it works in Chrome, Edge and Safari). You'll rate your own speaking instead."
           }
         >
-          <input
-            type="checkbox"
-            checked={settings.speechInput && recognitionSupported()}
-            disabled={!recognitionSupported()}
-            onChange={(e) => updateSettings({ speechInput: e.target.checked })}
-            className="h-5 w-5 accent-[var(--accent)]"
-            aria-label="Use speech input"
+          <Segmented
+            label="Speech input"
+            value={settings.speechInput && recognitionSupported() ? 'on' : 'off'}
+            onChange={(v) => recognitionSupported() && updateSettings({ speechInput: v === 'on' })}
+            options={[
+              { value: 'on', label: 'On' },
+              { value: 'off', label: 'Off' },
+            ]}
           />
-        </Row>
-      </section>
+        </Setting>
+      </Section>
 
-      <SyncSection
-        status={sync}
-        lastSyncedAt={settings.lastSyncedAt}
-        onConnect={(token) => {
-          setToken(token)
-          void syncNow()
-        }}
-        onDisconnect={() => {
-          setToken(undefined)
-          updateSettings({ lastSyncedAt: undefined })
-          void syncNow()
-        }}
-        onSync={() => void syncNow()}
-      />
-
-      <section className="mb-10">
-        <SectionTitle>Your data</SectionTitle>
-        <p className="mb-2 max-w-[62ch] text-[15px] text-ink-2">
-          Progress is stored in this browser only. Export a backup to move it to another device or browser, or to keep it safe
-          before clearing browser data.
+      <Section
+        title="Sync Between Devices"
+        aside={
+          connected && (
+            <span className="flex items-center gap-1.5 text-[13px] text-ink-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+              {status.label}
+            </span>
+          )
+        }
+      >
+        <p className="m-0 max-w-[60ch] text-[15px] leading-normal text-ink-2">
+          Progress merges through a secret gist on your GitHub account. The token stays in this browser.
+          {connected && ' It syncs when you open the app, when you switch away, and shortly after you practise.'}
         </p>
-        <div className="flex flex-wrap gap-2 py-3">
-          <Button variant="secondary" onClick={download}>
-            Export backup
+        {sync.state === 'error' && <p className="m-0 max-w-[60ch] text-[15px] text-accent">{sync.message}</p>}
+        {connected ? (
+          <div className="flex flex-wrap gap-2.5">
+            <Button variant="outline" onClick={() => void syncNow()} disabled={sync.state === 'syncing'}>
+              Sync Now
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setToken(undefined)
+                updateSettings({ lastSyncedAt: undefined })
+                void syncNow()
+              }}
+            >
+              Disconnect This Device
+            </Button>
+          </div>
+        ) : (
+          <>
+            <ol className="m-0 flex flex-col gap-1 pl-5 text-[15px] text-ink-2">
+              <li>
+                On GitHub, create a{' '}
+                <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer" className="font-semibold text-accent">
+                  fine-grained token
+                </a>
+                . Under Account permissions, set Gists to Read and write. Nothing else is needed.
+              </li>
+              <li>Paste it here on each device you use.</li>
+            </ol>
+            <form
+              className="flex flex-wrap gap-2.5"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!token.trim()) return
+                setToken(token.trim())
+                setTokenValue('')
+                void syncNow()
+              }}
+            >
+              <input
+                type="password"
+                value={token}
+                onChange={(e) => setTokenValue(e.target.value)}
+                placeholder="github_pat_…"
+                autoComplete="off"
+                aria-label="GitHub token"
+                className={`${field} min-w-0 flex-[1_1_240px] text-[15px]`}
+              />
+              <Button type="submit" variant="outline" disabled={!token.trim()}>
+                Connect
+              </Button>
+            </form>
+          </>
+        )}
+      </Section>
+
+      <Section title="Backup">
+        <p className="m-0 text-[15px] leading-normal text-ink-2">A JSON file of your progress. Import it on another device to carry on there.</p>
+        <div className="flex flex-wrap gap-2.5">
+          <Button variant="ink" onClick={download}>
+            Export Backup
           </Button>
-          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
-            Import backup
+          <Button variant="outline" onClick={() => fileRef.current?.click()}>
+            Import Backup
           </Button>
           <input
             ref={fileRef}
@@ -199,118 +292,29 @@ export function Settings() {
             }}
           />
         </div>
-        {message && <p className={`text-[15px] ${message.tone === 'good' ? 'text-good' : 'text-bad'}`}>{message.text}</p>}
-        <Row label="Reset progress" help={
-            sync.state === 'off'
-              ? `Clears all ${pack.name} progress on this device. Settings are kept. This can't be undone.`
-              : `Clears ${pack.name} progress on this device. Sync is on, so your synced progress will come back on the next sync. Disconnect sync first to start over.`
-          }>
+        {message && <p className={`m-0 text-[15px] ${message.ok ? 'text-ink-2' : 'text-accent'}`}>{message.text}</p>}
+      </Section>
+
+      <Section title="Start Over">
+        <p className="m-0 max-w-[60ch] text-[15px] leading-normal text-ink-2">
+          {connected
+            ? `Clears ${pack.name} progress on this device. Sync is on, so your synced progress comes back on the next sync. Disconnect first to start over everywhere.`
+            : `Clears all ${pack.name} progress on this device. Settings are kept. This can't be undone.`}
+        </p>
+        <div>
           <Button
-            variant="quiet"
-            className="text-bad hover:text-bad"
+            variant="outline"
             onClick={() => {
               if (window.confirm(`Delete all ${pack.name} progress on this device? Export a backup first if you might want it.`)) {
                 resetProgress()
-                setMessage({ tone: 'good', text: 'Progress reset.' })
+                setMessage({ ok: true, text: 'Progress reset.' })
               }
             }}
           >
-            Reset progress
+            Reset Progress
           </Button>
-        </Row>
-      </section>
+        </div>
+      </Section>
     </div>
-  )
-}
-
-function SyncSection({
-  status,
-  lastSyncedAt,
-  onConnect,
-  onDisconnect,
-  onSync,
-}: {
-  status: { state: 'off' | 'idle' | 'syncing' | 'error'; message?: string; pending?: boolean }
-  lastSyncedAt?: number
-  onConnect: (token: string) => void
-  onDisconnect: () => void
-  onSync: () => void
-}) {
-  const [token, setTokenValue] = useState('')
-  const connected = status.state !== 'off' && !!getToken()
-  return (
-    <section className="mb-10">
-      <SectionTitle>Sync between devices</SectionTitle>
-      {!connected ? (
-        <div className="max-w-[62ch] space-y-3 text-[15px]">
-          <p className="text-ink-2">
-            Keep progress in step on your phone and computer. It's stored in a secret gist on your GitHub account: free, and
-            only reachable by someone with its exact link. It holds your learning progress and name, nothing else.
-          </p>
-          <ol className="list-decimal space-y-1 pl-5 text-ink-2">
-            <li>
-              On GitHub, create a{' '}
-              <a
-                href="https://github.com/settings/personal-access-tokens/new"
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-ink underline underline-offset-4"
-              >
-                fine-grained token
-              </a>
-              . Under Account permissions, set <strong className="text-ink">Gists</strong> to Read and write. Nothing else is needed.
-            </li>
-            <li>Paste it below on each device you use. The token stays on that device; it isn't exported or synced.</li>
-          </ol>
-          <form
-            className="flex flex-wrap gap-2 pt-1"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (token.trim()) onConnect(token.trim())
-              setTokenValue('')
-            }}
-          >
-            <input
-              type="password"
-              value={token}
-              onChange={(e) => setTokenValue(e.target.value)}
-              placeholder="github_pat_…"
-              autoComplete="off"
-              aria-label="GitHub token"
-              className="min-h-11 w-full max-w-sm rounded-xl border-[1.5px] border-line bg-raised px-3 text-[15px] outline-none focus:border-ink"
-            />
-            <Button type="submit" disabled={!token.trim()}>
-              Connect
-            </Button>
-          </form>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-[15px]">
-            {status.state === 'syncing'
-              ? 'Syncing…'
-              : status.state === 'error'
-                ? null
-                : status.pending
-                  ? 'Changes waiting to sync. They go up shortly after you practise, or when you leave the app.'
-                  : lastSyncedAt
-                  ? `Synced ${new Date(lastSyncedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}.`
-                  : 'Connected.'}
-          </p>
-          {status.state === 'error' && <p className="max-w-[62ch] text-[15px] text-bad">{status.message}</p>}
-          <p className="max-w-[62ch] text-[14px] text-ink-2">
-            Syncs when you open the app, when you switch away from it, and shortly after you practise.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={onSync} disabled={status.state === 'syncing'}>
-              Sync now
-            </Button>
-            <Button variant="quiet" onClick={onDisconnect}>
-              Disconnect this device
-            </Button>
-          </div>
-        </div>
-      )}
-    </section>
   )
 }

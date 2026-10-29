@@ -121,7 +121,7 @@ const lesson1: Lesson = {
   id: 'fr.u1.l1',
   kind: 'lesson',
   title: 'Bonjour !',
-  subtitle: 'Greetings and politeness',
+  subtitle: 'Greetings and Politeness',
   objectives: [
     'Greet someone in a way that suits the time of day and the situation.',
     'Ask how someone is, and answer.',
@@ -382,7 +382,7 @@ const lesson2: Lesson = {
   id: 'fr.u1.l2',
   kind: 'lesson',
   title: "Je m'appelle…",
-  subtitle: 'Names and introductions',
+  subtitle: 'Names and Introductions',
   objectives: [
     "Say your name and ask someone else's, formally and informally.",
     'React politely when you meet someone.',
@@ -658,7 +658,7 @@ const lesson3: Lesson = {
   id: 'fr.u1.l3',
   kind: 'lesson',
   title: "D'où venez-vous ?",
-  subtitle: "Where you're from, where you live, what you do",
+  subtitle: "Where You're From, Where You Live, What You Do",
   objectives: [
     "Say where you're from and where you live.",
     'Give your nationality in the right form for you.',
@@ -918,7 +918,7 @@ const lesson4: Lesson = {
   id: 'fr.u1.l4',
   kind: 'lesson',
   title: 'Au café',
-  subtitle: 'Ordering, paying and numbers to ten',
+  subtitle: 'Ordering, Paying and Numbers to Ten',
   objectives: [
     'Order a drink politely.',
     'Ask how much something costs and understand the answer.',
@@ -1070,7 +1070,7 @@ const checkpoint: Lesson = {
   id: 'fr.u1.check',
   kind: 'checkpoint',
   title: 'Bilan : premiers pas',
-  subtitle: 'Unit check: no new material, just you and what you know',
+  subtitle: 'Unit Check',
   objectives: [
     'Show you can greet, introduce yourself and order without support.',
     'Score 80% or more to mark this unit as demonstrated.',
@@ -1155,7 +1155,7 @@ export const unit1: Unit = {
   id: 'fr.u1',
   level: 'A1',
   title: 'Premiers pas',
-  subtitle: 'First steps: greetings, introductions and the café',
+  subtitle: 'First Steps: Greetings, Introductions and the Café',
   lessons: [lesson1, lesson2, lesson3, lesson4, checkpoint],
 }
 

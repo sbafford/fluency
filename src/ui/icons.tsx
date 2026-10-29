@@ -36,8 +36,7 @@ export const SlowIcon = (p: IconProps) => (
 )
 export const MicIcon = (p: IconProps) => (
   <Icon {...p}>
-    <rect x="9" y="3" width="6" height="11" rx="3" />
-    <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    <path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3ZM5 11a7 7 0 0 0 14 0M12 18v3" />
   </Icon>
 )
 export const CheckIcon = (p: IconProps) => (
@@ -52,8 +51,7 @@ export const CrossIcon = (p: IconProps) => (
 )
 export const LockIcon = (p: IconProps) => (
   <Icon {...p}>
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    <path d="M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2ZM8 11V8a4 4 0 0 1 8 0v3" />
   </Icon>
 )
 export const ArrowIcon = (p: IconProps) => (
@@ -103,5 +101,10 @@ export const PractiseIcon = (p: IconProps) => (
 export const ProgressIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5 20V12M12 20V5M19 20v-5" />
+  </Icon>
+)
+export const ChatIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 5h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
   </Icon>
 )

@@ -1,180 +1,151 @@
-import { totalActiveMs } from '../engine/progress'
-import { indexPack } from '../engine/session'
-import { ERROR_LABELS, levelSummary, recentDays, skillSummaries, statusCounts, topErrors, troubleItems } from '../engine/stats'
+import {
+  accuracySplit,
+  daysPractised,
+  ERROR_SHORT,
+  levelSummary,
+  skillSummaries,
+  STRENGTHS,
+  statusCounts,
+  topErrors,
+} from '../engine/stats'
 import type { Skill } from '../engine/types'
 import { useApp } from '../state/app'
+import { href } from '../state/router'
 import { CheckIcon } from '../ui/icons'
-import { Bar, PageHeader, SectionTitle, pct } from '../ui/kit'
+import { PageTitle, pct } from '../ui/kit'
 
-const SKILL_LABELS: Record<Skill, { name: string; what: string }> = {
-  listening: { name: 'Listening', what: 'Understanding French you hear' },
-  speaking: { name: 'Speaking', what: 'Being understood when you speak' },
-  recognition: { name: 'Recognition', what: 'Knowing a word when you see it' },
-  recall: { name: 'Recall', what: 'Producing French yourself' },
+const SKILL: Record<Skill, string> = { listening: 'Listening', speaking: 'Speaking', recognition: 'Recognition', recall: 'Recall' }
+const CANDO_SKILL: Record<string, string> = { listening: 'Listening', speaking: 'Speaking', reading: 'Reading', writing: 'Writing', interaction: 'Interaction' }
+
+function Stat({ value, label, accent = false }: { value: string; label: string; accent?: boolean }) {
+  return (
+    <div className="flex flex-col gap-1.5 py-[22px] pr-5">
+      <span className={`stat text-[clamp(44px,5cqi,60px)] ${accent ? 'text-accent' : ''}`}>{value}</span>
+      <span className="text-[14px] text-ink-2">{label}</span>
+    </div>
+  )
+}
+
+function Head({ title, aside }: { title: string; aside?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <h2 className="m-0 text-[20px] font-semibold">{title}</h2>
+      {aside && <span className="text-[13px] text-ink-2">{aside}</span>}
+    </div>
+  )
 }
 
 export function Progress() {
   const { pack, progress } = useApp()
   const now = Date.now()
-  const skills = skillSummaries(progress, now)
+  const split = accuracySplit(progress, now)
   const counts = statusCounts(pack, progress)
-  const errors = topErrors(progress, now)
-  const trouble = troubleItems(pack, progress)
-  const days = recentDays(progress, now, 14)
-  const maxDay = Math.max(1, ...days.map((d) => d.answered))
-  const totalItems = indexPack(pack).items.size
-  const lessonsDone = Object.values(progress.lessons).filter((l) => l.completedAt).length
-  const minutes = Math.round(totalActiveMs(progress) / 60000)
+  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  const errors = topErrors(progress, now, 5)
+  const maxErr = Math.max(1, ...errors.map((e) => e.count))
+  const skills = skillSummaries(progress, now)
 
   return (
-    <div>
-      <PageHeader title="progress">
-        Measured by what you can still do days later, not by how many lessons you've clicked through.
-      </PageHeader>
+    <div className="flex flex-col gap-11">
+      <PageTitle>Progress</PageTitle>
 
-      <section className="mb-12">
-        <SectionTitle aside="Last 30 days">Skills</SectionTitle>
-        <div className="grid gap-x-10 gap-y-6 sm:grid-cols-2">
-          {skills.map((s) => (
-            <div key={s.skill}>
-              <div className="mb-1 flex items-baseline justify-between gap-3">
-                <p className="text-[17px] font-semibold">{SKILL_LABELS[s.skill].name}</p>
-                <p className="text-[15px] tabular-nums">{s.accuracy === undefined ? 'Not enough yet' : pct(s.accuracy)}</p>
-              </div>
-              <Bar value={s.accuracy ?? 0} tone="ink" label={`${SKILL_LABELS[s.skill].name} accuracy`} />
-              <p className="mt-1.5 text-[14px] text-ink-2">
-                {SKILL_LABELS[s.skill].what}. {s.attempts} answers
-                {s.retention !== undefined && `, ${pct(s.retention)} on later days`}.
-              </p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-5 max-w-[62ch] text-[14px] text-ink-3">
-          "On later days" counts only answers about material you first met on an earlier day: the best sign it has stuck.
-          Speaking is measured by browser speech recognition, which checks you were understood, not your accent.
-        </p>
-      </section>
-
-      <section className="mb-12">
-        <SectionTitle aside={`${totalItems} in the course so far`}>Words and phrases</SectionTitle>
-        <div className="mb-3 flex h-3 w-full overflow-hidden rounded-full bg-line" aria-hidden="true">
-          <div className="bg-ink" style={{ width: `${(counts.mastered / totalItems) * 100}%` }} />
-          <div className="bg-accent" style={{ width: `${(counts.learning / totalItems) * 100}%` }} />
-          <div className="bg-bad" style={{ width: `${(counts.struggling / totalItems) * 100}%` }} />
-        </div>
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(
-            [
-              ['mastered', 'Mastered', 'bg-ink', 'Recalled across three weeks or more'],
-              ['learning', 'Learning', 'bg-accent', 'In regular revision'],
-              ['struggling', 'Struggling', 'bg-bad', 'Often missed; revised first'],
-              ['new', 'Not started', 'bg-line', 'Not met yet'],
-            ] as const
-          ).map(([key, label, swatch, what]) => (
-            <div key={key}>
-              <dt className="flex items-center gap-2 text-[14px] text-ink-2">
-                <span className={`h-2.5 w-2.5 rounded-full ${swatch}`} aria-hidden="true" />
-                {label}
-              </dt>
-              <dd className="text-[28px] font-semibold tabular-nums">{counts[key]}</dd>
-              <dd className="text-[13px] text-ink-3">{what}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      {pack.levels
-        .filter((l) => l.canDo.length)
-        .map((level) => {
-          const summary = levelSummary(pack, progress, level)
-          return (
-            <section key={level.id} className="mb-12">
-              <SectionTitle aside={`${summary.demonstrated} of ${level.canDo.length} demonstrated`}>
-                {level.id} {level.name.toLowerCase()}: what you can do
-              </SectionTitle>
-              <ul className="divide-y divide-line border-y border-line">
-                {summary.states.map(({ canDo, state }) => {
-                  const covered = indexPack(pack).lessons.some((l) => l.canDo.includes(canDo.id))
-                  return (
-                    <li key={canDo.id} className="flex items-start gap-3 py-3">
-                      <span
-                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                          state === 'demonstrated' ? 'bg-ink text-paper' : state === 'practising' ? 'bg-accent-wash text-accent' : 'border-[1.5px] border-line'
-                        }`}
-                        aria-hidden="true"
-                      >
-                        {state === 'demonstrated' && <CheckIcon size={14} />}
-                        {state === 'practising' && <span className="h-2 w-2 rounded-full bg-accent" />}
-                      </span>
-                      <div className="flex-1">
-                        <p className={`text-[16px] ${state === 'not-started' ? 'text-ink-2' : ''}`}>{canDo.text}</p>
-                        <p className="text-[13px] text-ink-3">
-                          {state === 'demonstrated'
-                            ? 'Demonstrated'
-                            : state === 'practising'
-                              ? 'Practising: pass the lessons with 80% and keep recalling the words on later days'
-                              : covered
-                                ? 'Not started'
-                                : 'Coming in later units'}
-                        </p>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
-          )
-        })}
-
-      <div className="mb-12 grid gap-10 md:grid-cols-2">
-        <section>
-          <SectionTitle aside="Last 30 days">Recurring mistakes</SectionTitle>
-          {errors.length ? (
-            <ul className="space-y-2">
-              {errors.map((e) => (
-                <li key={e.type} className="flex items-baseline justify-between gap-3 border-b border-line pb-2">
-                  <span>{ERROR_LABELS[e.type]}</span>
-                  <span className="tabular-nums text-ink-2">{e.count}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[15px] text-ink-2">Patterns in your mistakes will show here once there are a few.</p>
-          )}
-        </section>
-        <section>
-          <SectionTitle>Hardest so far</SectionTitle>
-          {trouble.length ? (
-            <ul className="space-y-2">
-              {trouble.map(({ item, misses }) => (
-                <li key={item.id} className="flex items-baseline justify-between gap-3 border-b border-line pb-2">
-                  <span>
-                    <span className="target text-[20px]">{item.target}</span>{' '}
-                    <span className="text-[14px] text-ink-2">{item.native}</span>
-                  </span>
-                  <span className="shrink-0 text-[14px] tabular-nums text-ink-2">{misses} missed</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[15px] text-ink-2">Nothing yet.</p>
-          )}
-        </section>
+      <div className="grid border-y border-line" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))' }}>
+        <Stat value={pct(split.sameDay)} label="Correct on the Day" />
+        <Stat value={pct(split.laterDays)} label="Correct on Later Days" accent />
+        <Stat value={String(daysPractised(progress))} label="Days Practised" />
       </div>
+      {split.laterDays === undefined && (
+        <p className="-mt-7 mb-0 max-w-[62ch] text-[14px] text-ink-3">
+          "Later days" counts only answers about words first met on an earlier day: the best sign they've stuck. It fills in after a few days of revision.
+        </p>
+      )}
 
-      <section className="mb-12">
-        <SectionTitle aside={`${lessonsDone} lessons finished, ${minutes} minutes studied`}>Last two weeks</SectionTitle>
-        <div className="flex h-28 items-end gap-1.5" role="img" aria-label="Answers per day over the last 14 days">
-          {days.map((d, i) => (
-            <div key={d.key} className="flex h-full flex-1 flex-col justify-end" title={`${d.key}: ${d.answered} answers`}>
-              <div
-                className={`w-full rounded-t-md ${i === days.length - 1 ? 'bg-accent' : 'bg-ink'}`}
-                style={{ height: d.answered ? `${Math.max(6, (d.answered / maxDay) * 100)}%` : '2px', opacity: d.answered ? 1 : 0.15 }}
-              />
+      <div className="flex flex-wrap gap-x-16 gap-y-11">
+        {pack.levels
+          .filter((l) => l.canDo.length)
+          .map((level) => {
+            const summary = levelSummary(pack, progress, level)
+            return (
+              <section key={level.id} className="flex flex-[3_1_420px] flex-col">
+                <div className="border-b border-line pb-3">
+                  <Head title={`${level.id} ${level.name}`} aside={`${summary.demonstrated} of ${level.canDo.length} Demonstrated`} />
+                </div>
+                {summary.states.map(({ canDo, state }) => (
+                  <div key={canDo.id} className="flex items-start gap-3.5 border-b border-line py-[13px]">
+                    <span
+                      className={`mt-px box-border grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full ${
+                        state === 'demonstrated' ? 'bg-strength-sealed text-[#16261a]' : 'border-[1.5px] border-line'
+                      }`}
+                      aria-label={state === 'demonstrated' ? 'Demonstrated' : state === 'practising' ? 'Practising' : 'Not started'}
+                    >
+                      {state === 'demonstrated' && <CheckIcon size={13} />}
+                      {state === 'practising' && <span className="h-2 w-2 rounded-full bg-fill" />}
+                    </span>
+                    <span className={`flex-1 text-[15px] leading-[1.45] ${state === 'demonstrated' ? 'text-ink' : 'text-ink-2'}`}>{canDo.text}</span>
+                    <span className="pt-0.5 text-[12px] whitespace-nowrap text-ink-3">{CANDO_SKILL[canDo.skill]}</span>
+                  </div>
+                ))}
+                <p className="m-0 pt-3 text-[13px] text-ink-3">
+                  A pink dot means practising. Abilities count as demonstrated once their lessons are passed at 80% and the words are recalled on later days.
+                </p>
+              </section>
+            )
+          })}
+
+        <div className="flex flex-[2_1_300px] flex-col gap-10">
+          <section className="flex flex-col gap-3.5">
+            <Head title="Your Words" aside={String(total)} />
+            <div className="flex h-3.5 gap-[3px] overflow-hidden rounded-full" aria-hidden="true">
+              {STRENGTHS.map((s) => counts[s.status] > 0 && <span key={s.status} style={{ flex: counts[s.status], background: s.color }} />)}
             </div>
-          ))}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+              {STRENGTHS.map((s) => (
+                <div key={s.status} className="flex items-center gap-2 text-[14px]">
+                  <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: s.color }} />
+                  <span className="flex-1">{s.label}</span>
+                  <span className="font-semibold tabular-nums">{counts[s.status]}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <Head title="Mistakes" aside="Last 30 Days" />
+            {errors.length ? (
+              errors.map((e) => (
+                <div key={e.type} className="grid grid-cols-[110px_1fr_24px] items-center gap-3 text-[14px]">
+                  <span>{ERROR_SHORT[e.type]}</span>
+                  <span className="h-2 rounded-full bg-wash">
+                    <span className="block h-full rounded-full bg-ink" style={{ width: `${(e.count / maxErr) * 100}%` }} />
+                  </span>
+                  <span className="text-right tabular-nums">{e.count}</span>
+                </div>
+              ))
+            ) : (
+              <p className="m-0 text-[14px] text-ink-2">Patterns in your mistakes show here once there are a few.</p>
+            )}
+            {errors.length > 0 && (
+              <a href={href({ name: 'review', mode: 'extra' })} className="mt-1.5 self-start text-[15px] font-semibold text-accent hover:text-pink-hover">
+                Practise Weak Spots →
+              </a>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <Head title="By Skill" aside="Last 30 Days" />
+            {skills.map((s) => (
+              <div key={s.skill} className="grid grid-cols-[110px_1fr_40px] items-center gap-3 text-[14px]">
+                <span>{SKILL[s.skill]}</span>
+                <span className="h-2 rounded-full bg-wash">
+                  <span className="block h-full rounded-full bg-fill" style={{ width: `${(s.accuracy ?? 0) * 100}%` }} />
+                </span>
+                <span className="text-right tabular-nums">{pct(s.accuracy)}</span>
+              </div>
+            ))}
+            <p className="m-0 text-[13px] text-ink-3">Speaking checks you were understood by speech recognition, not your accent.</p>
+          </section>
         </div>
-      </section>
+      </div>
     </div>
   )
 }

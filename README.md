@@ -62,7 +62,7 @@ The content tests in `src/content/content.test.ts` run against every pack and ca
 
 ### Changing the look
 
-Colours are design tokens at the top of `src/index.css`. The accent (`--accent`, `--accent-wash`, `--on-accent`) is a placeholder: replace those values and the whole app follows, in light and dark mode. Typefaces: Hanken Grotesk for the interface, EB Garamond for the language being learned (bundled locally, so they work offline).
+Colours are the design tokens from the Fluency design handoff, at the top of `src/index.css` (paper, ink, a rose accent, and fixed pink, yellow and strength colours). Light and dark follow the device, or the Appearance choice in Settings. Lessons, revision, listening and conversations open in a focused full-screen layout with a sticky action bar and a feedback sheet. `node e2e/screens.mjs` screenshots every screen on desktop and phone. Typefaces: Archivo (variable, with its width axis) for the interface, Instrument Serif for the language being learned (bundled locally, so they work offline).
 
 ## How learning works
 

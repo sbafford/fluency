@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { buildExtraPractice, buildReview, indexPack } from '../engine/session'
 import { useApp } from '../state/app'
+import { ActionButton, Actions, FocusFrame } from '../ui/Focus'
 import { LinkButton } from '../ui/kit'
 import { Player, type SessionSummary } from '../ui/Player'
+import { SessionResult } from '../ui/Summary'
 
 const SESSION_SIZE = 20
 
@@ -13,49 +15,43 @@ export function ReviewScreen({ mode }: { mode: 'due' | 'extra' }) {
     mode === 'due' ? buildReview(pack, progress, Date.now(), SESSION_SIZE) : buildExtraPractice(pack, progress, 12),
   )
   const [summary, setSummary] = useState<SessionSummary>()
+  const due = new Set(exercises.flatMap((e) => e.itemIds)).size
+  const kind = mode === 'due' ? 'Revision' : 'Practice'
+  const title = mode === 'due' ? `${due} Due Now` : 'Weak Spots'
 
   if (summary) {
     const index = indexPack(pack)
-    const pct = summary.scored ? Math.round((summary.correct / summary.scored) * 100) : 100
+    const missed = summary.missed.map((id) => index.items.get(id)).filter((x) => !!x)
     return (
-      <div className="mx-auto max-w-[720px] px-5 pt-10 pb-16">
-        <p className="mb-2 text-[15px] text-ink-2">{mode === 'due' ? 'Revision complete' : 'Practice complete'}</p>
-        <p className="mb-2 text-[88px] leading-none font-semibold tracking-[-0.04em] tabular-nums">{pct}%</p>
-        <p className="mb-8 max-w-[56ch] text-ink-2">
-          {summary.correct} of {summary.scored} remembered. Items you knew are now scheduled further out; anything you missed
-          comes back soon.
-        </p>
-        {summary.missed.length > 0 && (
-          <ul className="mb-8 divide-y divide-line border-y border-line">
-            {summary.missed.map((id) => {
-              const item = index.items.get(id)
-              return item ? (
-                <li key={id} className="flex flex-wrap items-baseline justify-between gap-x-4 py-3">
-                  <span className="target text-[22px]">{item.target}</span>
-                  <span className="text-ink-2">{item.native}</span>
-                </li>
-              ) : null
-            })}
-          </ul>
-        )}
-        <LinkButton href="#/">Back to today</LinkButton>
-      </div>
+      <FocusFrame kind={kind} title={title} closeHref="#/practise" progress={1}>
+        <SessionResult
+          kicker={mode === 'due' ? 'Revision Complete' : 'Practice Complete'}
+          score={summary.scored ? summary.correct / summary.scored : 1}
+          missed={missed}
+          line={`${summary.correct} of ${summary.scored} remembered. What you knew is now scheduled further out; anything you missed comes back soon.`}
+        />
+        <Actions>
+          <ActionButton onClick={() => (window.location.hash = '#/')}>Done</ActionButton>
+        </Actions>
+      </FocusFrame>
     )
   }
 
   if (!exercises.length) {
     return (
-      <div className="mx-auto max-w-[720px] px-5 pt-16">
-        <p className="mb-2 text-[22px] font-semibold">Nothing to revise right now</p>
-        <p className="mb-6 text-ink-2">
+      <FocusFrame kind={kind} title="Nothing Due" closeHref="#/practise">
+        <h1 className="target m-0 text-[clamp(48px,7cqi,72px)] leading-none">Rien pour l'instant.</h1>
+        <p className="m-0 max-w-[56ch] text-[17px] text-ink-2">
           {Object.keys(progress.items).length
-            ? 'Everything you have learned is scheduled for later. Come back tomorrow, or take the next lesson.'
-            : 'Finish your first lesson and its words will appear here.'}
+            ? 'Nothing to revise right now. Everything you have learned is scheduled for later. Come back tomorrow, or take the next lesson.'
+            : 'Nothing to revise yet. Finish your first lesson and its words start appearing here.'}
         </p>
-        <LinkButton href="#/">Back to today</LinkButton>
-      </div>
+        <div>
+          <LinkButton href="#/">Back to Today</LinkButton>
+        </div>
+      </FocusFrame>
     )
   }
 
-  return <Player exercises={exercises} review closeHref="#/practise" onFinish={setSummary} />
+  return <Player exercises={exercises} review={mode === 'due'} kind={kind} title={title} closeHref="#/practise" onFinish={setSummary} />
 }
