@@ -18,6 +18,7 @@ import type {
   SpeakExercise,
   TypeExercise,
 } from '../engine/types'
+import { SILENT_PEAK, startLevelMeter } from '../speech/micLevel'
 import { listenOnce, recognitionSupported, RecognitionError } from '../speech/recognition'
 import { useApp } from '../state/app'
 import { fillName } from '../tutor/provider'
@@ -539,17 +540,21 @@ export function Build({ exercise: e, onAnswer, verdict }: Props<BuildExercise>) 
 export function MicButton({
   onResult,
   onInterim,
+  onError,
   disabled,
   size = 'md',
 }: {
   onResult: (transcripts: string[]) => void
   onInterim?: (text: string) => void
+  /** Called when listening fails, so the exercise can offer another way on. */
+  onError?: (code: string) => void
   disabled?: boolean
   size?: 'md' | 'xl'
 }) {
   const { pack, speaker } = useApp()
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string>()
+  const [level, setLevel] = useState(0)
   const stopRef = useRef<() => void>(undefined)
   const start = async () => {
     if (active) {
@@ -559,13 +564,25 @@ export function MicButton({
     speaker.cancel()
     setError(undefined)
     setActive(true)
+    // The level bar shows whether any sound is reaching the browser at all.
+    const meter = await startLevelMeter(setLevel)
     const { result, stop } = listenOnce(pack.locale, onInterim)
     stopRef.current = stop
     try {
       onResult((await result).transcripts)
     } catch (err) {
-      setError(err instanceof RecognitionError ? err.message : 'Speech recognition failed.')
+      const code = err instanceof RecognitionError ? err.code : 'unknown'
+      let message = err instanceof RecognitionError ? err.message : 'Speech recognition failed.'
+      if (code === 'no-speech' && meter)
+        message =
+          meter.peak() < SILENT_PEAK
+            ? "Your microphone isn't picking up any sound. Check the right microphone is selected for this browser (see Settings, Test Microphone), then try again."
+            : "I heard sound but couldn't make out the words. Start speaking straight after tapping, a little closer to the microphone."
+      setError(message)
+      onError?.(code)
     } finally {
+      meter?.stop()
+      setLevel(0)
       setActive(false)
     }
   }
@@ -584,7 +601,12 @@ export function MicButton({
       >
         <MicIcon size={size === 'xl' ? 30 : 22} />
       </button>
-      {error && <span className="mt-2 max-w-[36ch] text-[14px] text-accent">{error}</span>}
+      {active && (
+        <span className="mt-2 block h-1.5 w-[72px] overflow-hidden rounded-full bg-wash" role="meter" aria-label="Microphone level" aria-valuenow={Math.round(level * 100)}>
+          <span className="block h-full rounded-full bg-fill transition-[width] duration-75" style={{ width: `${Math.round(level * 100)}%` }} />
+        </span>
+      )}
+      {error && <span className="mt-2 max-w-[40ch] text-[14px] text-accent">{error}</span>}
     </span>
   )
 }
@@ -597,6 +619,7 @@ export function Speak({ exercise: e, onAnswer, verdict }: Props<SpeakExercise>) 
   const [heard, setHeard] = useState<{ text: string; score: number; missing: string[] }>()
   const [interim, setInterim] = useState('')
   const [tries, setTries] = useState(0)
+  const [micFailed, setMicFailed] = useState(false)
   const best = useRef(0)
 
   const finish = (score: number) =>
@@ -630,7 +653,7 @@ export function Speak({ exercise: e, onAnswer, verdict }: Props<SpeakExercise>) 
       {canListen ? (
         <div className="flex flex-col gap-4 pt-4">
           <div className="flex items-center gap-4">
-            <MicButton onResult={onResult} onInterim={setInterim} disabled={!!verdict} size="xl" />
+            <MicButton onResult={onResult} onInterim={setInterim} onError={() => setMicFailed(true)} disabled={!!verdict} size="xl" />
             <span className="text-[15px] text-ink-2">
               {interim ? <span className="target text-[22px] text-ink">{interim}</span> : tries ? 'Tap to try again.' : 'Tap the microphone, then speak.'}
             </span>
@@ -649,6 +672,16 @@ export function Speak({ exercise: e, onAnswer, verdict }: Props<SpeakExercise>) 
           {tries > 0 && !verdict && (
             <Actions>
               <ActionButton onClick={() => finish(best.current)}>Move On</ActionButton>
+            </Actions>
+          )}
+          {tries === 0 && micFailed && !verdict && (
+            <Actions>
+              <Button variant="outline" className="py-[15px]" onClick={() => onAnswer({ result: 'near', skill: 'speaking', selfAssessed: true, expected: target, expectedIsFrench: true })}>
+                I Stumbled
+              </Button>
+              <ActionButton onClick={() => onAnswer({ result: 'correct', skill: 'speaking', selfAssessed: true, expected: target, expectedIsFrench: true })}>
+                I Said It Comfortably
+              </ActionButton>
             </Actions>
           )}
         </div>

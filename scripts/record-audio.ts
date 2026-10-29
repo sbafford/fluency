@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFile
 import { join } from 'node:path'
 import { languages } from '../src/content/index'
 import { clipKey, narrationPlan, type Manifest } from '../src/speech/narration'
+import { checkPcm, encodeMp3, parseWav, trim, type Pcm } from './audio-check'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const ENDPOINT = process.env.TTS_ENDPOINT ?? 'https://texttospeech.googleapis.com'
@@ -61,14 +62,29 @@ async function call(path: string, key: string, body?: unknown): Promise<any> {
   }
 }
 
-async function synthesise(key: string, voice: string, text: string): Promise<Buffer> {
+async function synthesise(key: string, voice: string, text: string): Promise<Pcm> {
   const languageCode = voice.split('-').slice(0, 2).join('-')
   const json = await call('/v1/text:synthesize', key, {
     input: { text },
     voice: { languageCode, name: voice },
-    audioConfig: { audioEncoding: 'MP3' },
+    audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: 24000 },
   })
-  return Buffer.from(json.audioContent, 'base64')
+  return parseWav(Buffer.from(json.audioContent, 'base64'))
+}
+
+/**
+ * Records one line and checks it contains speech. Google sometimes returns
+ * silence for a one-word line, so it tries again, then with a full stop,
+ * which reads the same. Returns the MP3, or undefined if every try was silent.
+ */
+async function recordChecked(key: string, voice: string, text: string): Promise<Buffer | undefined> {
+  const stop = /[.!?…]$/.test(text) ? text : `${text}.`
+  const tries = [...new Set([text, text, stop, stop.charAt(0).toUpperCase() + stop.slice(1)])]
+  for (const t of tries) {
+    const pcm = await synthesise(key, voice, t)
+    if (checkPcm(pcm).ok) return encodeMp3(trim(pcm))
+  }
+  return undefined
 }
 
 const fileFor = (voice: string, text: string) => createHash('sha1').update(`${voice}|${text}`).digest('hex').slice(0, 16) + '.mp3'
@@ -94,7 +110,8 @@ async function samples() {
   console.log(`Recording a sample in ${chirp.length} voices (${SAMPLE.length * chirp.length} characters)…`)
   await inBatches(chirp, 4, async (v) => {
     const name = `${v.ssmlGender === 'FEMALE' ? 'female' : 'male'} - ${v.name.split('-').pop()}.mp3`
-    writeFileSync(join(out, name), await synthesise(key, v.name, SAMPLE))
+    const mp3 = await recordChecked(key, v.name, SAMPLE)
+    if (mp3) writeFileSync(join(out, name), mp3)
     console.log('  ', name)
   })
   console.log(`\nDone. Open the audio-samples folder and listen. To change voices, edit src/content/fr/narration.ts.`)
@@ -108,7 +125,14 @@ async function record(dryRun: boolean) {
     const dir = join(ROOT, 'public', 'audio', pack.id)
     mkdirSync(dir, { recursive: true })
     const plan = narrationPlan(pack).map((l) => ({ ...l, voice: pack.narration!.voices[l.role] }))
-    const todo = plan.filter((l) => !existsSync(join(dir, fileFor(l.voice, l.text))))
+    // Clips recorded before checking existed are recorded again once, checked and trimmed.
+    const manifestPath = join(dir, 'manifest.json')
+    const previous: Manifest | undefined = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : undefined
+    const checked = new Set(previous?.checked ?? [])
+    const todo = plan.filter((l) => {
+      const file = fileFor(l.voice, l.text)
+      return !existsSync(join(dir, file)) || !checked.has(file)
+    })
     const chars = todo.reduce((n, l) => n + l.text.length, 0)
     total += chars
     console.log(`${pack.name}: ${plan.length} lines, ${plan.length - todo.length} already recorded, ${todo.length} to record (${chars.toLocaleString()} characters).`)
@@ -125,7 +149,16 @@ async function record(dryRun: boolean) {
     const failed: string[] = []
     await inBatches(todo, 4, async (l) => {
       try {
-        writeFileSync(join(dir, fileFor(l.voice, l.text)), await synthesise(key, l.voice, l.text))
+        const file = fileFor(l.voice, l.text)
+        const mp3 = await recordChecked(key, l.voice, l.text)
+        if (mp3) {
+          writeFileSync(join(dir, file), mp3)
+          checked.add(file)
+        } else {
+          // Leave no silent clip behind: the app uses the device voice for this line instead.
+          if (existsSync(join(dir, file))) unlinkSync(join(dir, file))
+          failed.push(`${l.text}: came back silent every time`)
+        }
       } catch (e) {
         failed.push(`${l.text}: ${(e as Error).message}`)
         if (/API key|PERMISSION_DENIED|has not been used|disabled|billing/i.test((e as Error).message)) throw e
@@ -134,17 +167,19 @@ async function record(dryRun: boolean) {
     })
 
     // The manifest lists only clips that exist; old clips no longer in the course are removed.
-    const manifest: Manifest = { voices: pack.narration.voices, clips: {} }
+    const manifest: Manifest = { voices: pack.narration.voices, clips: {}, checked: [] }
     const keep = new Set<string>()
     for (const l of plan) {
       const file = fileFor(l.voice, l.text)
       if (existsSync(join(dir, file))) {
         manifest.clips[clipKey(l.role, l.text)] = file
         keep.add(file)
+        if (checked.has(file)) manifest.checked!.push(file)
       }
     }
     for (const f of readdirSync(dir)) if (f.endsWith('.mp3') && !keep.has(f)) unlinkSync(join(dir, f))
-    writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 1))
+    manifest.checked!.sort()
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 1))
     console.log(`  Saved ${Object.keys(manifest.clips).length} clips and the manifest.`)
     if (failed.length) console.log(`  ${failed.length} lines failed; run again to retry:\n   ` + failed.slice(0, 10).join('\n   '))
   }

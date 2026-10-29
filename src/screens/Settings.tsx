@@ -5,6 +5,7 @@ import { ttsSupported, voicesFor, voicesReady } from '../speech/tts'
 import { useApp } from '../state/app'
 import { clearFlaggedAudio, flaggedAudio } from '../state/flags'
 import { getToken, setToken } from '../sync/gist'
+import { MicButton } from '../ui/exercises'
 import { Button, PageTitle, Segmented } from '../ui/kit'
 import { syncText } from '../ui/SyncBadge'
 
@@ -47,6 +48,7 @@ function useResolvedTheme(choice: 'light' | 'dark' | undefined): 'light' | 'dark
 export function Settings() {
   const { data, pack, settings, updateSettings, replaceData, resetProgress, speaker, sync, syncNow, recordedCount } = useApp()
   const [flags, setFlags] = useState(flaggedAudio)
+  const [micTest, setMicTest] = useState('')
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [message, setMessage] = useState<{ ok: boolean; text: string }>()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -234,6 +236,17 @@ export function Settings() {
             ]}
           />
         </Setting>
+        {recognitionSupported() && (
+          <Setting
+            label="Test Microphone"
+            help="Tap, then say « Bonjour, comment allez-vous ? ». The bar shows whether sound reaches the app; the text shows what was understood."
+          >
+            <div className="flex items-start gap-4">
+              <MicButton onResult={(t) => setMicTest(t[0])} onInterim={setMicTest} onError={() => setMicTest('')} />
+              {micTest && <span className="target pt-2.5 text-[22px]">{micTest}</span>}
+            </div>
+          </Setting>
+        )}
       </Section>
 
       <Section

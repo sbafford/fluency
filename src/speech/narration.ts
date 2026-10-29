@@ -12,6 +12,8 @@ export interface Manifest {
   voices: Record<string, string>
   /** clipKey(role, text) to file name. */
   clips: Record<string, string>
+  /** Clips the recorder has checked contain speech. */
+  checked?: string[]
 }
 
 export interface Line {
