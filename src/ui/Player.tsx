@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { normalise } from '../engine/answers'
 import { recordAnswer } from '../engine/progress'
 import { indexPack, isScored, shuffle } from '../engine/session'
@@ -6,6 +6,7 @@ import { itemStatus } from '../engine/srs'
 import { strengthLabel } from '../engine/stats'
 import type { ErrorType, Exercise, Lesson } from '../engine/types'
 import { useApp } from '../state/app'
+import { clearPosition, loadPosition, savePosition } from '../state/resume'
 import {
   Build,
   Choose,
@@ -64,8 +65,11 @@ export function Player({
   title,
   closeHref,
   onFinish,
+  resumeKey,
 }: {
   exercises: Exercise[]
+  /** When set, the position is saved as you go so the session can be resumed. */
+  resumeKey?: string
   lesson?: Lesson
   review?: boolean
   kind: string
@@ -74,19 +78,39 @@ export function Player({
   onFinish: (summary: SessionSummary) => void
 }) {
   const { record, tick, progress, pack, speaker } = useApp()
-  const [queue, setQueue] = useState<QueueEntry[]>(() => exercises.map((exercise) => ({ exercise, retry: false })))
-  const [pos, setPos] = useState(0)
+  const [saved] = useState(() => (resumeKey ? loadPosition(resumeKey, new Set(exercises.map((e) => e.id))) : undefined))
+  const [queue, setQueue] = useState<QueueEntry[]>(() => {
+    if (!saved) return exercises.map((exercise) => ({ exercise, retry: false }))
+    const byId = new Map(exercises.map((e) => [e.id, e]))
+    return saved.queue.map((q) => ({ exercise: q.retry ? withShuffledOptions(byId.get(q.id)!) : byId.get(q.id)!, retry: q.retry }))
+  })
+  const [pos, setPos] = useState(saved?.pos ?? 0)
   const [verdict, setVerdict] = useState<Verdict>()
   const [change, setChange] = useState<{ from: string; to: string; days: number }>()
-  const [results, setResults] = useState<Record<string, Verdict>>({})
+  const [results, setResults] = useState<Record<string, Verdict>>(() =>
+    Object.fromEntries(Object.entries(saved?.results ?? {}).map(([id, result]) => [id, { result, skill: 'recall' } as Verdict])),
+  )
+
+  // Save the position whenever it moves, so leaving mid-lesson isn't a restart.
+  useEffect(() => {
+    if (!resumeKey) return
+    if (pos === 0) return
+    savePosition(resumeKey, {
+      queue: queue.map((q) => ({ id: q.exercise.id, retry: q.retry })),
+      pos,
+      results: Object.fromEntries(Object.entries(results).map(([id, v]) => [id, v.result])),
+      savedAt: Date.now(),
+    })
+  }, [resumeKey, queue, pos, results])
 
   const entry = queue[pos]
 
   const finish = useCallback(() => {
     const firsts = exercises.filter(isScored).map((e) => results[e.id]).filter((v): v is Verdict => !!v)
     const missed = exercises.filter((e) => results[e.id]?.result === 'wrong').flatMap((e) => e.itemIds)
+    if (resumeKey) clearPosition(resumeKey)
     onFinish({ scored: firsts.length, correct: firsts.filter((v) => v.result !== 'wrong').length, missed: [...new Set(missed)] })
-  }, [exercises, results, onFinish])
+  }, [exercises, results, onFinish, resumeKey])
 
   const next = useCallback(() => {
     setVerdict(undefined)
@@ -193,6 +217,7 @@ export function Player({
       label = 'Keep Saying It Aloud'
     }
     if (change && tone !== 'wrong' && change.from !== change.to) label = `${change.from} → ${change.to}`
+    if (tone !== 'wrong' && v.hinted) label = 'With a Hint · Comes Back Sooner'
 
     const notes: string[] = []
     if (v.detail) notes.push(v.detail)

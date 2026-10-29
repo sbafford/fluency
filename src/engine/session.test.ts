@@ -10,6 +10,7 @@ import {
   nextLesson,
   seededRng,
   todayPlan,
+  unitReached,
 } from './session'
 import { addDays, DAY } from './srs'
 import { canDoStatus, skillSummaries, topErrors } from './stats'
@@ -26,6 +27,14 @@ describe('curriculum progression', () => {
     p = completeLesson(p, 'l1', ['a', 'b', 'c'], 0.9, T0)
     expect(nextLesson(fixturePack, p)?.id).toBe('l2')
     expect(isUnlocked(fixturePack, p, 'l2')).toBe(true)
+  })
+
+  it('treats a unit as reached once its first lesson is open', () => {
+    const p = emptyProgress('xx')
+    expect(unitReached(fixturePack, p, 'u1')).toBe(true)
+    expect(unitReached(fixturePack, p, 'missing')).toBe(false)
+    const later = { ...fixturePack, units: [...fixturePack.units, { ...fixturePack.units[0], id: 'u2', lessons: [{ ...fixturePack.units[0].lessons[0], id: 'l9', items: [], exercises: [] }] }] }
+    expect(unitReached(later, p, 'u2')).toBe(false)
   })
 
   it('records lesson scores and attempts', () => {

@@ -2,6 +2,8 @@
 
 A personal language-learning app. French first, built so other languages can be added as content rather than code.
 
+The French course covers the whole of A1 in six units (24 lessons and 6 unit checks), with 12 listening pieces and 12 conversations.
+
 It runs entirely in the browser: no account, no database, no paid services. Progress is saved in the browser and can be exported and imported as a JSON backup.
 
 ## Run it
@@ -23,6 +25,7 @@ Other commands:
 | `npm run typecheck` | Checks types |
 | `npm run build` | Builds a static site into `dist/` |
 | `npm run preview` | Serves the built site at http://localhost:4173 |
+| `node e2e/lessons.mjs out 3 6` | Plays every lesson and unit check in units 3 to 6, and opens every listening piece and conversation, checking for errors and phone-width overflow (needs the preview running) |
 | `npm run e2e` | Walks through a full lesson, revision, listening and conversation in headless Chromium (run `npm run preview` first; the first time, run `npx playwright install chromium`) |
 
 ## Using it on several devices
@@ -58,7 +61,7 @@ src/
 3. Write the units, listening pieces and conversations.
 4. List the pack in `src/content/index.ts`.
 
-The content tests in `src/content/content.test.ts` run against every pack and catch broken references, missing answer options, model answers the checker would reject, and items that are taught but never practised.
+The content tests (`src/content/packChecks.ts`, run by `content.test.ts`) run against every pack and catch broken references, missing answer options, model answers the checker would reject, and items that are taught but never practised.
 
 ### Changing the look
 

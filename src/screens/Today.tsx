@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { dayLog } from '../engine/progress'
-import { todayPlan } from '../engine/session'
+import { todayPlan, unitReached } from '../engine/session'
 import { dayKey } from '../engine/srs'
 import { levelSummary, STRENGTHS, statusCounts } from '../engine/stats'
 import { useApp } from '../state/app'
@@ -35,8 +35,8 @@ export function Today() {
   const total = Object.values(counts).reduce((a, b) => a + b, 0)
   const maxCount = Math.max(1, ...Object.values(counts))
 
-  const nextListening = pack.listening.find((l) => !progress.listening[l.id]?.completedAt)
-  const nextTalk = pack.conversations.find((c) => !progress.conversations[c.id]?.completedAt)
+  const nextListening = pack.listening.find((l) => !progress.listening[l.id]?.completedAt && unitReached(pack, progress, l.unitId))
+  const nextTalk = pack.conversations.find((c) => !progress.conversations[c.id]?.completedAt && unitReached(pack, progress, c.unitId))
 
   const items: PlanItem[] = []
   if (plan.next && plan.nextUnit) {

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { checkAnswer, checkSlots, compareSpoken, expandVariants } from '../engine/answers'
+import { nextLetter, wordShape } from '../engine/hints'
 import { indexPack, shuffle } from '../engine/session'
 import type {
   AnswerResult,
@@ -314,16 +315,65 @@ export function FrenchInput({
   )
 }
 
+/** Progressive help for typed answers: the shape of the answer, then one letter at a time. */
+function HintBar({ answer, value, onChange, onUse }: { answer: string; value: string; onChange: (v: string) => void; onUse: () => void }) {
+  const [shown, setShown] = useState(false)
+  const shape = wordShape(answer)
+  return (
+    <div className="flex flex-col gap-2.5">
+      {shown && (
+        <div className="target flex flex-wrap gap-x-5 gap-y-1 text-[24px] leading-[1.3] text-ink-2" aria-label="The shape of the answer">
+          {shape.map((w, i) => (
+            <span key={i} className="whitespace-pre">
+              {w}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-x-5 gap-y-1">
+        {!shown ? (
+          <button
+            type="button"
+            onClick={() => {
+              setShown(true)
+              onUse()
+            }}
+            className="py-1.5 text-[14px] font-semibold text-accent"
+          >
+            Show a Hint
+          </button>
+        ) : (
+          <button
+            type="button"
+            onMouseDown={(ev) => ev.preventDefault()}
+            onClick={() => {
+              onChange(nextLetter(value, answer))
+              onUse()
+            }}
+            className="py-1.5 text-[14px] font-semibold text-accent"
+          >
+            Next Letter
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function TypedAnswer({
   onSubmit,
   verdict,
   onSkip,
+  hintAnswer,
 }: {
-  onSubmit: (text: string) => void
+  onSubmit: (text: string, hinted: boolean) => void
   verdict?: Verdict
   onSkip?: () => void
+  /** When set, offers a hint built from this answer. */
+  hintAnswer?: string
 }) {
   const [value, setValue] = useState('')
+  const [hinted, setHinted] = useState(false)
   const ref = useRef<HTMLInputElement>(null)
   const formId = useId()
   return (
@@ -332,12 +382,13 @@ function TypedAnswer({
         id={formId}
         onSubmit={(ev) => {
           ev.preventDefault()
-          if (!verdict && value.trim()) onSubmit(value)
+          if (!verdict && value.trim()) onSubmit(value, hinted)
         }}
         className="flex flex-col gap-4"
       >
         <FrenchInput value={value} onChange={setValue} inputRef={ref} locked={!!verdict} tone={verdict?.result} />
         {!verdict && <AccentKeys inputRef={ref} value={value} onChange={setValue} />}
+        {!verdict && hintAnswer && <HintBar answer={hintAnswer} value={value} onChange={setValue} onUse={() => setHinted(true)} />}
       </form>
       {!verdict && (
         <Actions>
@@ -369,16 +420,17 @@ export function TypeIt({ exercise: e, onAnswer, verdict }: Props<TypeExercise>) 
             <p className="m-0 text-[15px] text-ink-2">{e.hint}</p>
           ) : (
             <button type="button" onClick={() => setHinted(true)} className="text-[14px] font-semibold text-accent">
-              Show a Hint
+              Show a Clue
             </button>
           )}
         </div>
       )}
       <TypedAnswer
         verdict={verdict}
-        onSubmit={(text) => {
+        hintAnswer={e.answers[0]}
+        onSubmit={(text, usedHint) => {
           const r = checkAnswer(text, e.answers, opts)
-          onAnswer({ ...r, expectedIsFrench: true, skill: 'recall', given: text, hinted })
+          onAnswer({ ...r, expectedIsFrench: true, skill: 'recall', given: text, hinted: hinted || usedHint })
         }}
         onSkip={() => onAnswer({ result: 'wrong', skill: 'recall', expected: e.answers[0], expectedIsFrench: true, given: '' })}
       />
@@ -403,9 +455,10 @@ export function Dictation({ exercise: e, onAnswer, verdict }: Props<DictationExe
       </div>
       <TypedAnswer
         verdict={verdict}
-        onSubmit={(text) => {
+        hintAnswer={e.audio}
+        onSubmit={(text, usedHint) => {
           const r = checkAnswer(text, e.answers, opts)
-          onAnswer({ ...r, expected: e.audio, expectedIsFrench: true, detail: e.translation, skill: 'listening', given: text })
+          onAnswer({ ...r, expected: e.audio, expectedIsFrench: true, detail: e.translation, skill: 'listening', given: text, hinted: usedHint })
         }}
         onSkip={() => onAnswer({ result: 'wrong', skill: 'listening', expected: e.audio, expectedIsFrench: true, detail: e.translation, given: '' })}
       />
@@ -633,6 +686,7 @@ export function Respond({ exercise: e, onAnswer, verdict }: Props<RespondExercis
   const formId = useId()
   const canListen = recognitionSupported() && settings.speechInput
   const models = e.answers.map((a) => fillName(a, settings.learnerName))
+  const [hinted, setHinted] = useState(false)
 
   const submit = () => {
     if (verdict || !value.trim()) return
@@ -647,10 +701,11 @@ export function Respond({ exercise: e, onAnswer, verdict }: Props<RespondExercis
         given: value,
         errorType: r.ok ? undefined : near ? 'typo' : 'missing-word',
         detail: r.ok ? undefined : `Your answer needed to ${r.missing.join(' and ')}.`,
+        hinted,
       })
     } else {
       const r = checkAnswer(value, models, opts)
-      onAnswer({ ...r, expectedIsFrench: true, skill: 'recall', given: value })
+      onAnswer({ ...r, expectedIsFrench: true, skill: 'recall', given: value, hinted })
     }
   }
 
@@ -669,6 +724,7 @@ export function Respond({ exercise: e, onAnswer, verdict }: Props<RespondExercis
       >
         <FrenchInput value={value} onChange={setValue} inputRef={ref} locked={!!verdict} tone={verdict?.result} placeholder={canListen ? 'Type or speak' : 'Type in French'} />
         {!verdict && <AccentKeys inputRef={ref} value={value} onChange={setValue} />}
+        {!verdict && models[0] && <HintBar answer={models[0]} value={value} onChange={setValue} onUse={() => setHinted(true)} />}
       </form>
       {!verdict && (
         <Actions>

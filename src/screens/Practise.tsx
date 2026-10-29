@@ -1,4 +1,4 @@
-import { dueTracks } from '../engine/session'
+import { dueTracks, unitReached } from '../engine/session'
 import { useApp } from '../state/app'
 import { href } from '../state/router'
 import { ChatIcon, CheckIcon, PlayIcon, PractiseIcon } from '../ui/icons'
@@ -11,7 +11,7 @@ export function Practise() {
   const due = dueTracks(pack, progress, Date.now())
   const dueItems = new Set(due.map((d) => d.itemId)).size
   const known = Object.keys(progress.items).length
-  const nextListen = pack.listening.find((l) => !progress.listening[l.id]?.completedAt)
+  const nextListen = pack.listening.find((l) => !progress.listening[l.id]?.completedAt && unitReached(pack, progress, l.unitId))
   const heard = pack.listening.filter((l) => progress.listening[l.id]?.completedAt).length
   const talked = pack.conversations.filter((c) => progress.conversations[c.id]?.completedAt).length
 
@@ -53,8 +53,13 @@ export function Practise() {
             const done = !!progress.listening[l.id]?.completedAt
             const isNext = l.id === nextListen?.id
             const unitNo = pack.units.findIndex((u) => u.id === l.unitId) + 1
+            const later = !done && !unitReached(pack, progress, l.unitId)
             return (
-              <a key={l.id} href={href({ name: 'listen', id: l.id })} className="flex items-center gap-3.5 border-b border-line py-3.5 hover:bg-wash">
+              <a
+                key={l.id}
+                href={href({ name: 'listen', id: l.id })}
+                className={`flex items-center gap-3.5 border-b border-line py-3.5 hover:bg-wash ${later ? 'opacity-55' : ''}`}
+              >
                 <span
                   className={`box-border grid h-9 w-9 shrink-0 place-items-center rounded-full ${
                     done ? 'bg-btn text-onbtn' : isNext ? 'bg-fill text-feedback-on' : 'border-[1.5px] border-line text-ink-3'
@@ -67,6 +72,7 @@ export function Practise() {
                   <div className="text-[13px] text-ink-2">
                     {KIND[l.kind]} · Unit {unitNo}
                     {isNext && ' · Next'}
+                    {later && ' · For Later'}
                     {done && ` · Best ${Math.round(progress.listening[l.id].bestScore * 100)}%`}
                   </div>
                 </div>
@@ -79,11 +85,20 @@ export function Practise() {
           <SectionHead title="Conversation" icon={<ChatIcon size={22} />} aside={`${talked} of ${pack.conversations.length} Done`} />
           {pack.conversations.map((c) => {
             const done = !!progress.conversations[c.id]?.completedAt
+            const later = !done && !unitReached(pack, progress, c.unitId)
+            const unitNo = pack.units.findIndex((u) => u.id === c.unitId) + 1
             return (
-              <a key={c.id} href={href({ name: 'talk', id: c.id })} className="flex items-center gap-3.5 border-b border-line py-3.5 hover:bg-wash">
+              <a
+                key={c.id}
+                href={href({ name: 'talk', id: c.id })}
+                className={`flex items-center gap-3.5 border-b border-line py-3.5 hover:bg-wash ${later ? 'opacity-55' : ''}`}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="text-[18px] leading-[1.25] font-medium">{c.title}</div>
-                  <div className="text-[13px] text-ink-2">{c.place ?? c.setting}</div>
+                  <div className="text-[13px] text-ink-2">
+                    {c.place ?? c.setting} · Unit {unitNo}
+                    {later && ' · For Later'}
+                  </div>
                 </div>
                 <Pill>{c.register === 'formal' ? 'Formal' : 'Informal'}</Pill>
                 <span className="w-4 text-[13px] text-accent" aria-label={done ? 'Done' : 'Not done yet'}>

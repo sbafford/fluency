@@ -38,6 +38,10 @@ A running record of significant choices, so they can be revisited deliberately.
 
 **Unit 2: Les chiffres et le temps.** Numbers 11 to 100, age with avoir, telling the time (including the 24-hour clock), days of the week and making plans, plus a unit check, two listening pieces (a station announcement and a phone booking) and two conversations.
 
+**Units 3 to 6 complete A1.** Unit 3, *Les gens et les lieux*: family, describing people, home and neighbourhood. Unit 4, *Goûts et achats*: likes and dislikes with negation, the market and partitives, clothes and colours, paying. Unit 5, *Se déplacer*: directions, transport and *aller*, months and dates, the near future. Unit 6, *La vie de tous les jours*: daily routine, weather and seasons, short messages and sign-offs, forms and spelling aloud. Each has four lessons, a unit check, two listening pieces and two conversations, and continues Sarah's week in Lyon. Each unit was reviewed separately for French accuracy and answer fairness.
+
+**Listening and conversations follow the course.** Today only suggests listening and conversation practice from units you have reached. Later ones stay open on the Practise screen, dimmed and marked For Later.
+
 ## Known limitations
 
 - A1 has two units so far. Not yet covered: describing people and places, likes and dislikes, shopping beyond the café, directions, and writing short messages.

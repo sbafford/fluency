@@ -106,7 +106,7 @@ export function Learn() {
         {units.length === 0
           ? `Lessons for ${level.id} haven't been written yet. Finish ${pack.levels[pack.levels.indexOf(level) - 1]?.id ?? 'the level before'} first.`
           : levelId === 'A1'
-            ? 'Still to come in A1: describing people and places, likes and dislikes, shopping, directions, dates and short messages.'
+            ? `Pass all ${units.length} unit checks to complete A1. A2 comes next.`
             : ''}
       </p>
     </div>

@@ -35,10 +35,13 @@ export function voicesFor(locale: string, preferred: string[] = []): SpeechSynth
   const all = s.getVoices().filter((v) => v.lang.replace('_', '-').toLowerCase().startsWith(lang))
   const score = (v: SpeechSynthesisVoice) => {
     let n = 0
-    if (v.lang.replace('_', '-').toLowerCase() === locale.toLowerCase()) n += 10
+    // The exact accent matters most: a Canadian or Belgian voice teaches a different pronunciation.
+    if (v.lang.replace('_', '-').toLowerCase() === locale.toLowerCase()) n += 100
+    if (/enhanced|premium|natural|neural|amélioré|améliorée/i.test(v.name)) n += 40
     const p = preferred.findIndex((name) => v.name.includes(name))
     if (p >= 0) n += 20 - p
-    if (/enhanced|premium|natural|neural/i.test(v.name)) n += 5
+    // Apple's novelty and low-fidelity voices mispronounce too much to learn from.
+    if (/^(Eddy|Flo|Grandma|Grandpa|Grand-mère|Grand-père|Reed|Rocko|Sandy|Shelley|Jacques|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Wobble|Zarvox|Trinoids|Whisper|Superstar|Organ|Junior|Ralph|Kathy|Fred|Albert)\b/i.test(v.name)) n -= 200
     return n
   }
   return [...all].sort((x, y) => score(y) - score(x))

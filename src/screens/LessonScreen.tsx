@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { completeLesson } from '../engine/progress'
 import { indexPack, isUnlocked } from '../engine/session'
 import { useApp } from '../state/app'
+import { clearPosition, loadPosition } from '../state/resume'
 import { href } from '../state/router'
 import { ActionButton, Actions, FocusFrame } from '../ui/Focus'
 import { Button, LinkButton, Rich } from '../ui/kit'
@@ -34,11 +35,13 @@ export function LessonScreen({ id }: { id: string }) {
   const lessonNo = unit.lessons.indexOf(lesson) + 1
   const kind = lesson.kind === 'checkpoint' ? `Unit Check · Unit ${unitNo}` : `Lesson ${lessonNo} · Unit ${unitNo}`
   const best = progress.lessons[lesson.id]?.bestScore
+  const resume = stage === 'intro' ? loadPosition(lesson.id, new Set(lesson.exercises.map((e) => e.id))) : undefined
 
   if (stage === 'play') {
     return (
       <Player
         key={run}
+        resumeKey={lesson.id}
         exercises={lesson.exercises}
         lesson={lesson}
         kind={kind}
@@ -92,6 +95,7 @@ export function LessonScreen({ id }: { id: string }) {
               variant="outline"
               className="py-[15px]"
               onClick={() => {
+                clearPosition(lesson.id)
                 setRun((r) => r + 1)
                 setStage('play')
               }}
@@ -131,9 +135,28 @@ export function LessonScreen({ id }: { id: string }) {
         ))}
       </section>
       <Actions>
-        <ActionButton onClick={() => setStage('play')}>
-          {best !== undefined ? 'Do It Again' : lesson.kind === 'checkpoint' ? 'Start Unit Check' : 'Start Lesson'}
-        </ActionButton>
+        {resume ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                clearPosition(lesson.id)
+                setRun((r) => r + 1)
+                setStage('play')
+              }}
+              className="px-[18px] py-4 text-[15px] whitespace-nowrap text-ink-2 hover:text-ink"
+            >
+              Start Over
+            </button>
+            <ActionButton onClick={() => setStage('play')}>
+              Carry On · {resume.pos + 1}/{resume.queue.length}
+            </ActionButton>
+          </>
+        ) : (
+          <ActionButton onClick={() => setStage('play')}>
+            {best !== undefined ? 'Do It Again' : lesson.kind === 'checkpoint' ? 'Start Unit Check' : 'Start Lesson'}
+          </ActionButton>
+        )}
       </Actions>
     </FocusFrame>
   )

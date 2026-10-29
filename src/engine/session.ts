@@ -98,6 +98,12 @@ export function isUnlocked(pack: LanguagePack, progress: ProgressState, lessonId
   return lessons.slice(0, i).every((l) => !!progress.lessons[l.id]?.completedAt)
 }
 
+/** A unit is reached once its first lesson is open, so its listening and conversations make sense. */
+export function unitReached(pack: LanguagePack, progress: ProgressState, unitId: string): boolean {
+  const unit = pack.units.find((u) => u.id === unitId)
+  return !!unit?.lessons[0] && isUnlocked(pack, progress, unit.lessons[0].id)
+}
+
 /* ------------------------------------------------------------------ */
 /* Revision queue                                                      */
 /* ------------------------------------------------------------------ */
