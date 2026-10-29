@@ -47,7 +47,7 @@ export function ListeningScreen({ id }: { id: string }) {
       const sp = piece.speakers[line.speaker]
       setCurrent(i)
       setHeardTo((h) => Math.max(h, i + 1))
-      await speaker.speak(line.target, { voice: sp.voice, pitch: sp.pitch, rate })
+      await speaker.speak(line.target, { voice: sp.voice, pitch: sp.pitch, rate, who: sp.name })
       await new Promise((r) => setTimeout(r, rate === 'normal' ? 250 : 450))
     }
     playing.current = false

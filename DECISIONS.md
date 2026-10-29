@@ -48,3 +48,7 @@ A running record of significant choices, so they can be revisited deliberately.
 - Sync needs a GitHub token on each device. If two devices review the same item between syncs, only the later review's scheduling is kept.
 - Dates (months, "le 3 mars") are not taught yet.
 - Lessons 3 and 4 are on the long side (20+ steps); worth splitting once more content exists.
+
+**Recorded voices instead of device voices.** Device text-to-speech varies by phone and browser and mispronounced short words. Every French line is now recorded once with Google's Chirp 3 HD voices (a build-time script on your own computer; the key never leaves it) and bundled with the app. Each character keeps one voice. The device voice remains the fallback, and is chosen to prefer France-French, higher-quality voices.
+
+**Hints and resuming.** Typed answers offer the shape of the answer, then one letter at a time; a hinted answer counts but comes back sooner. An unfinished lesson keeps its place on that device for a week.

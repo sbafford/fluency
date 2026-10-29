@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { isUnlocked, nextLesson } from '../engine/session'
 import type { CefrLevel, Lesson } from '../engine/types'
 import { useApp } from '../state/app'
+import { loadPosition } from '../state/resume'
 import { href } from '../state/router'
 import { CheckIcon, LockIcon } from '../ui/icons'
 import { PageTitle } from '../ui/kit'
@@ -72,7 +73,7 @@ export function Learn() {
                       ? 'bg-fill text-feedback-on'
                       : 'border-[1.5px] border-line text-ink-3'
                 const meta =
-                  st === 'done' ? `${Math.round((lp?.bestScore ?? 0) * 100)}%` : st === 'current' ? 'Start →' : `${lesson.minutes} Min`
+                  st === 'done' ? `${Math.round((lp?.bestScore ?? 0) * 100)}%` : st === 'current' ? (loadPosition(lesson.id, new Set(lesson.exercises.map((e) => e.id))) ? 'Carry On →' : 'Start →') : `${lesson.minutes} Min`
                 const row = (
                   <div className={`flex items-center gap-4 border-b border-line py-3.5 ${st === 'locked' ? 'opacity-55' : ''}`}>
                     <span className={`box-border grid h-7 w-7 shrink-0 place-items-center rounded-full ${dot}`}>

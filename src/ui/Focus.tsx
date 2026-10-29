@@ -118,6 +118,7 @@ export function FeedbackSheet({
   answer,
   answerIsFrench = true,
   onPlay,
+  onFlag,
   children,
   onContinue,
 }: {
@@ -127,9 +128,12 @@ export function FeedbackSheet({
   answer?: string
   answerIsFrench?: boolean
   onPlay?: () => void
+  /** Offered with audio: report that the pronunciation sounded wrong. */
+  onFlag?: () => void
   children?: ReactNode
   onContinue: () => void
 }) {
+  const [flagged, setFlagged] = useState(false)
   const colours = {
     correct: 'bg-pink text-feedback-on',
     nearly: 'bg-yellow text-feedback-on',
@@ -157,6 +161,19 @@ export function FeedbackSheet({
               </button>
             )}
             <span className={answerIsFrench ? 'target text-[25px] leading-[1.2]' : 'text-[18px] font-medium'}>{answer}</span>
+            {onPlay && onFlag && (
+              <button
+                type="button"
+                disabled={flagged}
+                onClick={() => {
+                  onFlag()
+                  setFlagged(true)
+                }}
+                className="ml-auto shrink-0 py-1 text-[12px] font-semibold whitespace-nowrap opacity-70 hover:opacity-100"
+              >
+                {flagged ? 'Flagged' : 'Sounds Wrong?'}
+              </button>
+            )}
           </div>
         )}
         {children && <div className="max-w-[56ch] text-[15px] leading-[1.45]">{children}</div>}

@@ -2,6 +2,7 @@ import type { LanguagePack } from '../../engine/types'
 import { conversations } from './conversations'
 import { levels } from './levels'
 import { listening } from './listening'
+import { narration } from './narration'
 import { unit1 } from './unit1'
 import { unit2 } from './unit2'
 import { unit3 } from './unit3'
@@ -28,4 +29,5 @@ export const french: LanguagePack = {
   conversations: [...conversations, ...conversations3, ...conversations4, ...conversations5, ...conversations6],
   // Optional pathways (such as faith and culture) plug in here without changing the core course.
   pathways: [],
+  narration,
 }

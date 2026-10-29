@@ -27,11 +27,13 @@ const seed = {
   },
 }
 
-const browser = await pw.launch({ executablePath: process.env.CHROME_PATH || undefined, headless: true })
+const browser = await pw.launch({ executablePath: process.env.CHROME_PATH || undefined, headless: true, args: ['--autoplay-policy=no-user-gesture-required'] })
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, serviceWorkers: 'block' })
 await ctx.addInitScript((s) => localStorage.setItem('fluency.data', s), JSON.stringify(seed))
 const page = await ctx.newPage()
 let current = ''
+let clipsPlayed = 0
+page.on('request', (r) => r.url().endsWith('.mp3') && clipsPlayed++)
 page.on('pageerror', (e) => problems.push(`${current}: pageerror ${e.message}`))
 page.on('console', (m) => m.type() === 'error' && problems.push(`${current}: console ${m.text()}`))
 
@@ -54,6 +56,8 @@ async function play(id) {
       problems.push(`${id} step ${n}: page ${wide}px wider than the phone`)
       await page.screenshot({ path: `${out}/${id}-wide-${n}.png` })
     }
+    // Press every play button on screen, so each line's recording is looked up.
+    for (const b of await page.locator('button[aria-label^="Play"]:visible').all()) await b.click({ timeout: 1000 }).catch(() => {})
     if (n % 4 === 0) await page.screenshot({ path: `${out}/${id}-${String(n).padStart(2, '0')}.png` })
     n++
     if (await vis('button:has-text("Continue")')) {
@@ -114,6 +118,11 @@ for (const href of links) {
   await page.screenshot({ path: `${out}/${href.replace(/[#/]+/g, '_')}.png`, fullPage: true })
 }
 console.log('practice pages', links.length)
+
+// With recordings present, every line played should have come from a recording.
+const missing = await page.evaluate(() => [...(window.__fluencyMissingClips ?? [])])
+console.log('recorded clips requested', clipsPlayed, '· lines with no recording', missing.length)
+if (missing.length) console.log('  ' + missing.slice(0, 40).join('\n  '))
 
 await browser.close()
 console.log(problems.length ? 'PROBLEMS\n' + problems.join('\n') : 'PROBLEMS none')

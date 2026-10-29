@@ -282,6 +282,21 @@ export interface Conversation {
   itemIds: string[]
 }
 
+/**
+ * Recorded narration. Each role is one recorded voice; speakers in dialogues
+ * are mapped to roles so a character always sounds the same.
+ */
+export interface Narration {
+  /** Role id to the voice used to record it, e.g. f1 → "fr-FR-Chirp3-HD-Aoede". */
+  voices: Record<string, string>
+  /** Role for single words, sentences and prompts. */
+  narrator: string
+  /** Role for a second, unnamed speaker (voice "b"). */
+  second: string
+  /** Speaker name to role. Unlisted speakers use narrator or second by their voice. */
+  speakers: Record<string, string>
+}
+
 /** An optional pathway, such as the future faith and culture module. */
 export interface Pathway {
   id: string
@@ -307,6 +322,7 @@ export interface LanguagePack {
   listening: ListeningPiece[]
   conversations: Conversation[]
   pathways: Pathway[]
+  narration?: Narration
 }
 
 /* ------------------------------------------------------------------ */
@@ -403,6 +419,8 @@ export interface Settings {
   speechInput: boolean
   voiceA?: string
   voiceB?: string
+  /** Use the device voice even where a recording exists. */
+  deviceVoiceOnly?: boolean
   /** Show translations under target-language lines by default. */
   showTranslations: boolean
   /** Light or dark appearance. Unset follows the device. */

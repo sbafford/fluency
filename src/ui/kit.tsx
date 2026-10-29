@@ -99,6 +99,7 @@ export function AudioButton({
   voice,
   pitch,
   rate,
+  who,
   label = 'Play',
   size = 'md',
   tone = 'ink',
@@ -107,6 +108,8 @@ export function AudioButton({
   voice?: 'a' | 'b'
   pitch?: number
   rate?: SpeechRate
+  /** Speaker name, for the recorded voice of a character. */
+  who?: string
   label?: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
   tone?: 'ink' | 'wash' | 'fill'
@@ -115,7 +118,7 @@ export function AudioButton({
   const [playing, setPlaying] = useState(false)
   const play = async () => {
     setPlaying(true)
-    await speaker.speak(text, { voice, pitch, rate })
+    await speaker.speak(text, { voice, pitch, rate, who })
     setPlaying(false)
   }
   const dims = { sm: 'h-10 w-10', md: 'h-11 w-11', lg: 'h-14 w-14', xl: 'h-[72px] w-[72px]' }[size]

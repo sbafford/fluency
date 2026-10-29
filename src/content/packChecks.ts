@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkAnswer, checkSlots, expandVariants } from '../engine/answers'
 import { indexPack, isScored } from '../engine/session'
 import type { LanguagePack } from '../engine/types'
+import { narrationPlan, roleFor } from '../speech/narration'
 
 /*
  * Content integrity checks. Every language pack must pass these, so authoring
@@ -120,6 +121,28 @@ export function describePack(pack: LanguagePack) {
         for (const t of c.turns)
           if (t.kind === 'learner')
             for (const m of t.models) expect(checkSlots(fill(m), t.slots).ok, `${c.id}: ${m}`).toBe(true)
+    })
+
+    it('gives every named speaker a recorded voice, and different voices within a scene', () => {
+      const n = pack.narration
+      if (!n) return
+      for (const role of Object.values(n.speakers)) expect(n.voices[role], role).toBeDefined()
+      const scenes: { id: string; names: string[] }[] = [
+        ...index.lessons.filter((l) => l.dialogue).map((l) => ({ id: l.id, names: Object.values(l.dialogue!.speakers).map((s) => s.name) })),
+        ...pack.listening.map((l) => ({ id: l.id, names: Object.values(l.speakers).map((s) => s.name) })),
+      ]
+      for (const scene of scenes) {
+        for (const name of scene.names) expect(n.speakers[name], `${scene.id}: ${name} has no voice`).toBeDefined()
+        const roles = scene.names.map((name) => roleFor(n, { who: name }))
+        expect(new Set(roles).size, `${scene.id}: two speakers share a voice (${scene.names.join(', ')})`).toBe(roles.length)
+      }
+      for (const c of pack.conversations) expect(n.speakers[c.partner.name], `${c.id}: ${c.partner.name}`).toBeDefined()
+      for (const l of index.lessons)
+        for (const e of l.exercises) {
+          const who = e.type === 'respond' ? e.partner?.speaker : e.type === 'gap' ? e.before?.speaker : undefined
+          if (who) expect(n.speakers[who], `${e.id}: ${who}`).toBeDefined()
+        }
+      expect(narrationPlan(pack).length).toBeGreaterThan(0)
     })
 
     it('links every lesson to can-do statements defined for its level', () => {

@@ -3,6 +3,7 @@ import { getLanguage } from '../content'
 import * as P from '../engine/progress'
 import { load, save } from '../engine/storage'
 import type { AppData, LanguagePack, ProgressState, Settings } from '../engine/types'
+import type { Manifest } from '../speech/narration'
 import { Speaker } from '../speech/tts'
 import { getToken, mergeData, SyncError, syncNow } from '../sync/gist'
 
@@ -24,6 +25,8 @@ interface AppContextValue {
   progress: ProgressState
   settings: Settings
   speaker: Speaker
+  /** How many recorded clips this language has (0 when none are recorded yet). */
+  recordedCount: number
   saveFailed: boolean
   sync: SyncStatus
   updateProgress: (fn: (p: ProgressState) => ProgressState) => void
@@ -66,9 +69,29 @@ export function AppProvider({ children, initial }: { children: ReactNode; initia
   const progress = data.progress[pack.id] ?? P.emptyProgress(pack.id, data.deviceId)
   const settings = data.settings
 
+  // Recorded audio, when the pack has been recorded (see scripts/record-audio.ts).
+  const [manifest, setManifest] = useState<{ pack: string; manifest: Manifest } | null>(null)
+  useEffect(() => {
+    if (!pack.narration) return
+    let live = true
+    fetch(`${import.meta.env.BASE_URL}audio/${pack.id}/manifest.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m: Manifest | null) => live && m?.clips && setManifest({ pack: pack.id, manifest: m }))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [pack])
+  const recordings =
+    pack.narration && manifest?.pack === pack.id && !settings.deviceVoiceOnly
+      ? { base: `${import.meta.env.BASE_URL}audio/${pack.id}/`, manifest: manifest.manifest, narration: pack.narration }
+      : undefined
+  const recordedCount = manifest?.pack === pack.id ? Object.keys(manifest.manifest.clips).length : 0
+
   const speaker = useMemo(
-    () => new Speaker(pack.locale, pack.preferredVoices, { a: settings.voiceA, b: settings.voiceB }, settings.rate),
-    [pack, settings.voiceA, settings.voiceB, settings.rate],
+    () => new Speaker(pack.locale, pack.preferredVoices, { a: settings.voiceA, b: settings.voiceB }, settings.rate, recordings),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pack, settings.voiceA, settings.voiceB, settings.rate, manifest, settings.deviceVoiceOnly],
   )
 
   const runSync = useCallback(async () => {
@@ -152,6 +175,7 @@ export function AppProvider({ children, initial }: { children: ReactNode; initia
     progress,
     settings,
     speaker,
+    recordedCount,
     saveFailed,
     sync: { ...sync, pending: sync.state !== 'off' && (pending || sync.state === 'error') },
     updateProgress,

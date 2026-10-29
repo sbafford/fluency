@@ -6,6 +6,7 @@ import { itemStatus } from '../engine/srs'
 import { strengthLabel } from '../engine/stats'
 import type { ErrorType, Exercise, Lesson } from '../engine/types'
 import { useApp } from '../state/app'
+import { flagAudio } from '../state/flags'
 import { clearPosition, loadPosition, savePosition } from '../state/resume'
 import {
   Build,
@@ -235,6 +236,7 @@ export function Player({
         answer={v.expected}
         answerIsFrench={v.expectedIsFrench}
         onPlay={v.expected && v.expectedIsFrench ? () => speaker.speak(v.expected!) : undefined}
+        onFlag={v.expected ? () => flagAudio(v.expected!) : undefined}
         onContinue={next}
       >
         {notes.length > 0 && notes.map((n) => <p key={n} className="m-0">{n}</p>)}

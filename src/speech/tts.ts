@@ -1,4 +1,5 @@
-import type { SpeechRate } from '../engine/types'
+import type { Narration, SpeechRate } from '../engine/types'
+import { clipKey, roleFor, type Manifest } from './narration'
 
 /*
  * Text to speech using the browser's built-in voices. Quality depends on the
@@ -18,6 +19,18 @@ export interface SpeakOptions {
   rate?: SpeechRate
   voice?: 'a' | 'b'
   pitch?: number
+  /** Speaker name, so a recorded character keeps their own voice. */
+  who?: string
+}
+
+/** Playback speeds for recorded audio, which is recorded at a natural pace. */
+export const RECORDED_RATES: Record<SpeechRate, number> = { slow: 0.75, normal: 0.95, natural: 1 }
+
+export interface Recordings {
+  /** Folder the clips are served from, ending in "/". */
+  base: string
+  manifest: Manifest
+  narration: Narration
 }
 
 const synth = (): SpeechSynthesis | undefined =>
@@ -66,12 +79,50 @@ export class Speaker {
   private preferred: string[]
   private choice: VoiceChoice
   private defaultRate: SpeechRate
+  private recordings?: Recordings
+  private audio?: HTMLAudioElement
+  private stopAudio?: () => void
 
-  constructor(locale: string, preferred: string[], choice: VoiceChoice = {}, rate: SpeechRate = 'normal') {
+  constructor(locale: string, preferred: string[], choice: VoiceChoice = {}, rate: SpeechRate = 'normal', recordings?: Recordings) {
     this.locale = locale
     this.preferred = preferred
     this.choice = choice
     this.defaultRate = rate
+    this.recordings = recordings
+  }
+
+  /** The recorded clip for a line, if there is one. */
+  clipFor(text: string, opts: SpeakOptions = {}): string | undefined {
+    const r = this.recordings
+    if (!r) return undefined
+    const file = r.manifest.clips[clipKey(roleFor(r.narration, opts), text)]
+    if (!file && typeof window !== 'undefined') {
+      // Lets the end-to-end tests find lines that were never recorded.
+      const w = window as unknown as { __fluencyMissingClips?: Set<string> }
+      ;(w.__fluencyMissingClips ??= new Set()).add(clipKey(roleFor(r.narration, opts), text))
+    }
+    return file ? r.base + file : undefined
+  }
+
+  private playClip(url: string, rate: SpeechRate): Promise<boolean> {
+    return new Promise((resolve) => {
+      const audio = this.audio ?? (this.audio = new Audio())
+      let settled = false
+      const done = (played: boolean) => {
+        if (settled) return
+        settled = true
+        audio.onended = audio.onerror = null
+        this.stopAudio = undefined
+        resolve(played)
+      }
+      this.stopAudio = () => done(true)
+      audio.onended = () => done(true)
+      audio.onerror = () => done(false)
+      audio.src = url
+      audio.preservesPitch = true
+      audio.defaultPlaybackRate = audio.playbackRate = RECORDED_RATES[rate]
+      audio.play().catch(() => done(false))
+    })
   }
 
   private resolveVoice(which: 'a' | 'b'): { voice?: SpeechSynthesisVoice; pitch: number } {
@@ -84,10 +135,19 @@ export class Speaker {
     return b ? { voice: b, pitch: 1 } : { voice: a, pitch: 0.82 }
   }
 
-  speak(text: string, opts: SpeakOptions = {}): Promise<void> {
+  async speak(text: string, opts: SpeakOptions = {}): Promise<void> {
+    this.cancel()
+    const clip = this.clipFor(text, opts)
+    if (clip && (await this.playClip(clip, opts.rate ?? this.defaultRate))) return
+    return this.speakWithDevice(text, opts)
+  }
+
+  private speakWithDevice(raw: string, opts: SpeakOptions): Promise<void> {
     const s = synth()
     if (!s) return Promise.resolve()
     s.cancel()
+    // "enchanté(e)" is written for reading; say it without the optional ending.
+    const text = raw.replace(/\((\p{L}{1,3})\)/gu, '')
     const { voice, pitch } = this.resolveVoice(opts.voice ?? 'a')
     const u = new SpeechSynthesisUtterance(text)
     u.lang = voice?.lang ?? this.locale
@@ -111,6 +171,8 @@ export class Speaker {
   }
 
   cancel() {
+    if (this.audio && !this.audio.paused) this.audio.pause()
+    this.stopAudio?.()
     synth()?.cancel()
   }
 }

@@ -56,7 +56,7 @@ export function TalkScreen({ id }: { id: string }) {
     }
     if (turn.kind === 'partner') {
       setMessages((m) => [...m, { from: 'partner', target: turn.target, native: turn.native }])
-      void speaker.speak(turn.target, { voice: convo.partner.voice, pitch: convo.partner.pitch })
+      void speaker.speak(turn.target, { voice: convo.partner.voice, pitch: convo.partner.pitch, who: convo.partner.name })
       setTurnIndex((i) => i + 1)
     }
   }, [turnIndex, convo, speaker, done, firstTry, updateProgress])

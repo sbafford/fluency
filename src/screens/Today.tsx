@@ -4,6 +4,7 @@ import { todayPlan, unitReached } from '../engine/session'
 import { dayKey } from '../engine/srs'
 import { levelSummary, STRENGTHS, statusCounts } from '../engine/stats'
 import { useApp } from '../state/app'
+import { loadPosition } from '../state/resume'
 import { href } from '../state/router'
 import { ChatIcon, LearnIcon, PlayIcon, PractiseIcon } from '../ui/icons'
 import { Button, LinkButton } from '../ui/kit'
@@ -40,6 +41,7 @@ export function Today() {
 
   const items: PlanItem[] = []
   if (plan.next && plan.nextUnit) {
+    const resume = loadPosition(plan.next.id, new Set(plan.next.exercises.map((e) => e.id)))
     const unitNo = pack.units.indexOf(plan.nextUnit) + 1
     items.push({
       key: 'lesson',
@@ -47,7 +49,7 @@ export function Today() {
       title: plan.next.title,
       french: true,
       icon: <LearnIcon size={24} />,
-      action: plan.next.kind === 'checkpoint' ? 'Start Check' : 'Start Lesson',
+      action: resume ? `Carry On · ${resume.pos + 1}/${resume.queue.length}` : plan.next.kind === 'checkpoint' ? 'Start Check' : 'Start Lesson',
       href: href({ name: 'lesson', id: plan.next.id }),
       primary: plan.recommendation === 'lesson',
     })

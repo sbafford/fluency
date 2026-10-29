@@ -38,6 +38,18 @@ Other commands:
 
 **Without sync**, use *Settings > Export backup* on one device and *Import backup* on the other.
 
+## Recorded audio
+
+French lines are recorded once with Google Cloud Text-to-Speech (Chirp 3 HD voices) and served from `public/audio/fr/`, so every device hears the same natural voices. Lines without a recording (anything with your name in it, or anything new) use the device voice.
+
+1. In Google Cloud, create a project, enable billing and the *Cloud Text-to-Speech API*, and create an API key restricted to that API. Set a small budget alert.
+2. Put the key in `.env.local` in the project folder: `GOOGLE_TTS_KEY=...`. Files ending in `.local` are never committed.
+3. `npm run audio:samples` records one sentence in every voice into `audio-samples/` so you can choose. Voices are set in `src/content/fr/narration.ts`.
+4. `npm run audio:check` shows what would be recorded and how many characters, without calling Google.
+5. `npm run audio` records anything not yet recorded, then commit `public/audio/`. Re-running only records new or changed lines; changing a voice re-records that voice's lines.
+
+All of A1 is about 37,000 characters, well inside the free monthly allowance (1 million characters for Chirp 3 HD voices at the time of writing). In the app, *Sounds Wrong?* on the feedback sheet flags a line; flagged lines are listed in Settings to copy.
+
 ## How it's organised
 
 ```

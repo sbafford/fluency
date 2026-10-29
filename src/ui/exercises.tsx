@@ -259,7 +259,7 @@ export function Bubble({ who, fr, en, audio = false, mine = false }: { who?: str
     <div className={`flex flex-col gap-1.5 ${mine ? 'items-end' : 'items-start'}`}>
       {who && <span className="text-[12px] text-ink-3">{who}</span>}
       <div className={`flex max-w-[min(88%,480px)] items-start gap-3 rounded-[22px] px-[18px] py-3.5 ${mine ? 'bg-fill text-feedback-on' : 'border border-line bg-raised'}`}>
-        {audio && <AudioButton text={fr} size="sm" voice="b" />}
+        {audio && <AudioButton text={fr} size="sm" voice="b" who={who} />}
         <div>
           <div className="target text-[22px] leading-[1.25]">{fr}</div>
           {en && <div className="pt-0.5 text-[13px] opacity-75">{en}</div>}
@@ -771,7 +771,7 @@ export function DialogueView({ lesson, onDone }: { lesson: Lesson; onDone: () =>
     for (let i = 0; i < d.lines.length && playing.current; i++) {
       const sp = d.speakers[d.lines[i].speaker]
       setCurrent(i)
-      await speaker.speak(d.lines[i].target, { voice: sp.voice, pitch: sp.pitch, rate })
+      await speaker.speak(d.lines[i].target, { voice: sp.voice, pitch: sp.pitch, rate, who: sp.name })
       await new Promise((r) => setTimeout(r, 350))
     }
     playing.current = false
@@ -810,7 +810,7 @@ export function DialogueView({ lesson, onDone }: { lesson: Lesson; onDone: () =>
               <span className="text-[12px] text-ink-3">{sp.name}</span>
               <button
                 type="button"
-                onClick={() => speaker.speak(line.target, { voice: sp.voice, pitch: sp.pitch })}
+                onClick={() => speaker.speak(line.target, { voice: sp.voice, pitch: sp.pitch, who: sp.name })}
                 className={`max-w-[min(88%,480px)] rounded-[22px] px-[18px] py-3.5 text-left transition-colors ${
                   current === i ? 'bg-fill text-feedback-on' : 'border border-line bg-raised hover:border-ink'
                 }`}

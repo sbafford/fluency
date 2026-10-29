@@ -3,3 +3,4 @@ dist
 e2e/screenshots
 *.local
 .DS_Store
+audio-samples

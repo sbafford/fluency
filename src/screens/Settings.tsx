@@ -3,6 +3,7 @@ import { exportData, importData } from '../engine/storage'
 import { recognitionSupported } from '../speech/recognition'
 import { ttsSupported, voicesFor, voicesReady } from '../speech/tts'
 import { useApp } from '../state/app'
+import { clearFlaggedAudio, flaggedAudio } from '../state/flags'
 import { getToken, setToken } from '../sync/gist'
 import { Button, PageTitle, Segmented } from '../ui/kit'
 import { syncText } from '../ui/SyncBadge'
@@ -44,7 +45,8 @@ function useResolvedTheme(choice: 'light' | 'dark' | undefined): 'light' | 'dark
 }
 
 export function Settings() {
-  const { data, pack, settings, updateSettings, replaceData, resetProgress, speaker, sync, syncNow } = useApp()
+  const { data, pack, settings, updateSettings, replaceData, resetProgress, speaker, sync, syncNow, recordedCount } = useApp()
+  const [flags, setFlags] = useState(flaggedAudio)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [message, setMessage] = useState<{ ok: boolean; text: string }>()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -146,6 +148,40 @@ export function Settings() {
       </section>
 
       <Section title="Voices and Speaking">
+        {recordedCount > 0 && (
+          <Setting
+            label="Audio"
+            help={`${recordedCount.toLocaleString()} lines are recorded with natural French voices, the same on every device. Lines with your name, and anything not yet recorded, use this device's voice.`}
+          >
+            <Segmented
+              label="Audio"
+              value={settings.deviceVoiceOnly ? 'device' : 'recorded'}
+              onChange={(v) => updateSettings({ deviceVoiceOnly: v === 'device' ? true : undefined })}
+              options={[
+                { value: 'recorded', label: 'Recorded' },
+                { value: 'device', label: 'This Device' },
+              ]}
+            />
+          </Setting>
+        )}
+        {flags.length > 0 && (
+          <Setting label="Audio You Flagged" help={`${flags.length} ${flags.length === 1 ? 'line sounds' : 'lines sound'} wrong to you. Copy the list and send it over to have them fixed.`}>
+            <div className="flex flex-wrap gap-2.5">
+              <Button variant="outline" onClick={() => void navigator.clipboard?.writeText(flags.join('\n'))}>
+                Copy List
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  clearFlaggedAudio()
+                  setFlags([])
+                }}
+              >
+                Clear
+              </Button>
+            </div>
+          </Setting>
+        )}
         {!ttsSupported() && <p className="m-0 text-[15px] text-accent">This browser has no text-to-speech, so audio won't play.</p>}
         {(['voiceA', 'voiceB'] as const).map((key, i) => (
           <Setting
@@ -315,6 +351,8 @@ export function Settings() {
           </Button>
         </div>
       </Section>
+
+      <p className="m-0 text-[13px] text-ink-3">Version {__APP_VERSION__}</p>
     </div>
   )
 }
