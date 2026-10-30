@@ -282,6 +282,29 @@ export interface Conversation {
   itemIds: string[]
 }
 
+/** One accented letter: what it does to the sound and how to tell when a word needs it. */
+export interface AccentGuideEntry {
+  letter: string
+  /** Its name in the language being learned, e.g. "accent aigu". */
+  name: string
+  nameEn: string
+  sound: string
+  /** How to guess when a word takes it. `*word*` renders in the target-language font. */
+  guess: string
+  examples: Example[]
+}
+
+/**
+ * Why an answer is right, and why each tempting wrong option is wrong, for
+ * one exercise. Shown after a mistake, so a correction comes with a reason.
+ */
+export interface Explanation {
+  /** Why the right answer is right, in one or two short sentences. */
+  because?: string
+  /** For each wrong option, what it actually means or why it doesn't fit here. */
+  why?: Record<string, string>
+}
+
 /**
  * Recorded narration. Each role is one recorded voice; speakers in dialogues
  * are mapped to roles so a character always sounds the same.
@@ -295,6 +318,8 @@ export interface Narration {
   second: string
   /** Speaker name to role. Unlisted speakers use narrator or second by their voice. */
   speakers: Record<string, string>
+  /** Text to send to the voice instead of the line itself, to fix a pronunciation. Keyed by the line as shown. */
+  spoken?: Record<string, string>
 }
 
 /** An optional pathway, such as the future faith and culture module. */
@@ -323,6 +348,10 @@ export interface LanguagePack {
   conversations: Conversation[]
   pathways: Pathway[]
   narration?: Narration
+  /** What each accented letter does, for the accents guide. */
+  accents?: AccentGuideEntry[]
+  /** Explanations by exercise id. */
+  explanations?: Record<string, Explanation>
 }
 
 /* ------------------------------------------------------------------ */

@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 export type Route =
   | { name: 'today' }
   | { name: 'learn' }
+  | { name: 'phrasebook'; unit?: string }
   | { name: 'lesson'; id: string }
   | { name: 'practise' }
   | { name: 'review'; mode: 'due' | 'extra' }
@@ -22,6 +23,8 @@ export function parse(hash: string): Route {
   switch (path) {
     case 'learn':
       return { name: 'learn' }
+    case 'phrasebook':
+      return id ? { name: 'phrasebook', unit: id } : { name: 'phrasebook' }
     case 'lesson':
       return id ? { name: 'lesson', id } : { name: 'learn' }
     case 'practise':
@@ -51,6 +54,8 @@ export function href(route: Route): string {
       return `#/${route.name}/${encodeURIComponent(route.id)}`
     case 'review':
       return `#/review/${route.mode}`
+    case 'phrasebook':
+      return route.unit ? `#/phrasebook/${encodeURIComponent(route.unit)}` : '#/phrasebook'
     default:
       return `#/${route.name}`
   }

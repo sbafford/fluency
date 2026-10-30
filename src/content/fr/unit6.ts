@@ -532,7 +532,7 @@ const lesson2: Lesson = {
       items: [m.printemps],
       sentence: '___ printemps, il fait beau.',
       translation: 'In spring, the weather is nice.',
-      options: ['Au', 'En', 'À', 'Le'],
+      options: ['Au', 'En', 'À', 'Dans'],
       answer: 'Au',
     },
     {
@@ -787,7 +787,7 @@ const lesson3: Lesson = {
       items: [p.cher],
       sentence: '___ Léa, merci pour la carte !',
       translation: 'Dear Léa, thank you for the card!',
-      options: ['Chère', 'Cher', 'Coucou', 'Madame'],
+      options: ['Chère', 'Cher', 'Chers', 'Madame'],
       answer: 'Chère',
     },
     {
@@ -1087,10 +1087,11 @@ const lesson4: Lesson = {
       answers: ['le numéro de téléphone', 'numéro de téléphone', 'le numéro de portable'],
     },
     {
-      type: 'choose',
+      type: 'gap',
       items: [f.profession, o.jetravaille],
-      prompt: 'Votre profession ?',
-      promptLang: 'target',
+      before: { speaker: "L'employée", target: 'Votre profession ?', native: 'Your profession?' },
+      sentence: '___',
+      translation: 'Choose the reply that answers the question.',
       options: ['Je travaille dans la communication.', 'Je suis australienne.', "J'habite à Londres.", "Je m'appelle Sarah."],
       answer: 'Je travaille dans la communication.',
     },

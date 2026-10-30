@@ -171,7 +171,7 @@ const lesson1: Lesson = {
     title: 'Always start with bonjour',
     body: [
       'In France, beginning any exchange with "Bonjour", whether you walk into a shop, ask for directions or start a question at a desk, is expected. Skipping it can come across as rude, even if the rest of your French is perfect.',
-      'Adding "madame" or "monsieur" makes it warmer and more polite. From late afternoon or early evening, switch to "bonsoir".',
+      'Adding "madame" or "monsieur" makes it warmer and more polite. From early evening, around 6 pm, switch to "bonsoir".',
     ],
   },
   exercises: steps('fr.u1.l1', [

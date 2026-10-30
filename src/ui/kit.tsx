@@ -221,6 +221,7 @@ export function AccentKeys({
   onChange: (v: string) => void
 }) {
   const { pack } = useApp()
+  const [guide, setGuide] = useState(false)
   const insert = (ch: string) => {
     const el = inputRef.current
     const start = el?.selectionStart ?? value.length
@@ -232,19 +233,47 @@ export function AccentKeys({
     })
   }
   return (
-    <div className="flex flex-wrap gap-1.5" aria-label="Accented letters">
-      {pack.specialCharacters.map((ch) => (
-        <button
-          key={ch}
-          type="button"
-          // Keep focus in the text field so the phone keyboard stays open.
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => insert(ch)}
-          className="target grid h-11 min-w-11 select-none place-items-center rounded-xl border border-line text-[22px] hover:border-ink"
-        >
-          {ch}
-        </button>
-      ))}
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-wrap gap-1.5" aria-label="Accented letters">
+        {pack.specialCharacters.map((ch) => (
+          <button
+            key={ch}
+            type="button"
+            // Keep focus in the text field so the phone keyboard stays open.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => insert(ch)}
+            className="target grid h-11 min-w-11 select-none place-items-center rounded-xl border border-line text-[22px] hover:border-ink"
+          >
+            {ch}
+          </button>
+        ))}
+        {pack.accents && (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setGuide(!guide)}
+            aria-expanded={guide}
+            aria-label="What do the accents do?"
+            className={`grid h-11 min-w-11 select-none place-items-center rounded-xl border text-[16px] font-semibold ${guide ? 'border-ink bg-btn text-onbtn' : 'border-line text-ink-2 hover:border-ink'}`}
+          >
+            ?
+          </button>
+        )}
+      </div>
+      {guide && pack.accents && (
+        <div className="flex flex-col rounded-2xl border border-line bg-raised px-4 py-2" aria-label="What the accents do">
+          {pack.accents.map((a) => (
+            <div key={a.letter} className="flex items-baseline gap-3 border-b border-line py-2 last:border-b-0">
+              <span className="target w-6 shrink-0 text-[24px]">{a.letter}</span>
+              <span className="text-[14px] leading-snug">
+                <span className="text-ink-2">{a.nameEn}. </span>
+                <Rich text={a.sound} />
+              </span>
+            </div>
+          ))}
+          <span className="py-2 text-[13px] text-ink-3">On a Mac or iPhone, hold a letter key to pick its accent.</span>
+        </div>
+      )}
     </div>
   )
 }

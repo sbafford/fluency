@@ -30,7 +30,9 @@ export function Today() {
   const now = Date.now()
   const plan = todayPlan(pack, progress, settings, now)
   const [name, setName] = useState('')
-  const level = pack.levels[0]
+  // The level being worked on: that of the next lesson, or the last level with lessons once all are done.
+  const levelId = plan.nextUnit?.level ?? [...pack.units].reverse()[0]?.level ?? pack.levels[0].id
+  const level = pack.levels.find((l) => l.id === levelId) ?? pack.levels[0]
   const summary = levelSummary(pack, progress, level)
   const counts = statusCounts(pack, progress)
   const total = Object.values(counts).reduce((a, b) => a + b, 0)

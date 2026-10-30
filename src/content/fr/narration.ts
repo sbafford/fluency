@@ -15,6 +15,10 @@ export const narration: Narration = {
     m1: 'fr-FR-Chirp3-HD-Charon',
     m2: 'fr-FR-Chirp3-HD-Puck',
   },
+  // Pronunciation fixes, by the line as shown in the app. Short fragments are
+  // already sent as sentences ("tu es" is read from "Tu es."); add a line here
+  // only if it still sounds wrong after that, then run npm run audio again.
+  spoken: {},
   narrator: 'f1',
   second: 'm2',
   speakers: {
@@ -55,5 +59,24 @@ export const narration: Narration = {
     'Un touriste': 'm2',
     'Le caissier': 'm2',
     "L'employée": 'f3',
+    // A2 roles
+    'Le médecin': 'm2',
+    'La médecin': 'f3',
+    'Le pharmacien': 'm2',
+    'La pharmacienne': 'f3',
+    "L'hôtesse": 'f3',
+    'Le contrôleur': 'm2',
+    'La contrôleuse': 'f3',
+    'La propriétaire': 'f3',
+    'Le propriétaire': 'm2',
+    'Le collègue': 'm2',
+    'La collègue': 'f3',
+    'La cheffe': 'f3',
+    'Le chef': 'm2',
+    'La grand-mère': 'f3',
+    'Le grand-père': 'm2',
+    'Thomas': 'm2',
+    'Chloé': 'f3',
+    'Mamie': 'f3',
   },
 }

@@ -22,6 +22,10 @@ describe('recorded narration', () => {
     const first = french.units[0].lessons[0].dialogue!
     for (const line of first.lines) expect(keys.has(clipKey(roleFor(french.narration!, { who: first.speakers[line.speaker].name }), line.target))).toBe(true)
     expect(plan.some((l) => l.text.includes('{name}'))).toBe(false)
+    // With a name, the lines that say it are planned too, filled in.
+    const named = narrationPlan(french, ['Sav'])
+    expect(named.length).toBeGreaterThan(plan.length)
+    expect(named.some((l) => l.text.includes("m'appelle Sav"))).toBe(true)
     expect(new Set(plan.map((l) => l.role))).toEqual(new Set(Object.keys(french.narration!.voices)))
   })
 })

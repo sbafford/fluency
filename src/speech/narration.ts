@@ -38,15 +38,21 @@ export function roleFor(narration: Narration, opts: { who?: string; voice?: 'a' 
   return opts.voice === 'b' ? narration.second : narration.narrator
 }
 
-/** Every line the app can play, with the voice that reads it. */
-export function narrationPlan(pack: LanguagePack): Line[] {
+/**
+ * Every line the app can play, with the voice that reads it. Lines with the
+ * learner's name ("Je m'appelle {name}.") are included once for each name
+ * given, so they can be recorded too; without names they are left to the
+ * device voice.
+ */
+export function narrationPlan(pack: LanguagePack, names: string[] = []): Line[] {
   const n = pack.narration
   if (!n) return []
   const lines = new Map<string, Line>()
   const add = (text: string | undefined, opts: { who?: string; voice?: 'a' | 'b' } = {}) => {
-    if (!text || text.includes('{name}')) return
+    if (!text) return
     const role = roleFor(n, opts)
-    lines.set(clipKey(role, text), { role, text: clipText(text) })
+    const filled = text.includes('{name}') ? names.map((name) => text.replaceAll('{name}', name)) : [text]
+    for (const t of filled) lines.set(clipKey(role, t), { role, text: clipText(t) })
   }
   const narrate = (text?: string) => add(text)
 
@@ -91,6 +97,8 @@ export function narrationPlan(pack: LanguagePack): Line[] {
         }
       }
     }
+
+  for (const a of pack.accents ?? []) for (const ex of a.examples) narrate(ex.target)
 
   for (const piece of pack.listening)
     for (const line of piece.lines) add(line.target, { who: piece.speakers[line.speaker]?.name, voice: piece.speakers[line.speaker]?.voice })

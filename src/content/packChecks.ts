@@ -145,6 +145,37 @@ export function describePack(pack: LanguagePack) {
       expect(narrationPlan(pack).length).toBeGreaterThan(0)
     })
 
+    it('has explanations that match real exercises and options', () => {
+      const byId = new Map(index.lessons.flatMap((l) => l.exercises.map((e) => [e.id, e] as const)))
+      for (const [id, ex] of Object.entries(pack.explanations ?? {})) {
+        const e = byId.get(id)
+        expect(e, `explanation for unknown exercise ${id}`).toBeDefined()
+        const texts = [ex.because ?? '', ...Object.values(ex.why ?? {})]
+        for (const t of texts) {
+          expect(t, `${id}: no em or en dashes`).not.toMatch(/[—–]/)
+          expect(t.length, `${id}: keep it short`).toBeLessThanOrEqual(220)
+        }
+        if (ex.why) {
+          const options = e && 'options' in e ? e.options : []
+          const answer = e && 'answer' in e && typeof e.answer === 'string' ? e.answer : undefined
+          for (const opt of Object.keys(ex.why)) {
+            expect(options, `${id}: "${opt}" is not an option`).toContain(opt)
+            expect(opt, `${id}: the right answer needs no "why"`).not.toBe(answer)
+          }
+        }
+      }
+    })
+
+    it('explains every wrong option in multiple-choice questions', () => {
+      if (!pack.explanations) return
+      const missing: string[] = []
+      for (const l of index.lessons)
+        for (const e of l.exercises)
+          if (e.type === 'choose' || e.type === 'gap' || e.type === 'listen-choose')
+            for (const o of e.options) if (o !== e.answer && !pack.explanations[e.id]?.why?.[o]) missing.push(`${e.id}: ${o}`)
+      expect(missing.length, `wrong options with no explanation, e.g. ${missing.slice(0, 5).join(' | ')}`).toBe(0)
+    })
+
     it('links every lesson to can-do statements defined for its level', () => {
       for (const unit of pack.units) {
         const level = pack.levels.find((l) => l.id === unit.level)!

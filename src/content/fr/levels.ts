@@ -3,7 +3,7 @@ import type { LevelDefinition } from '../../engine/types'
 /*
  * Proficiency levels with practical can-do descriptors. These are written for
  * this app, guided by the publicly available CEFR global and self-assessment
- * descriptors. Only A1 is fully specified for now; later levels carry their
+ * descriptors. A1 and A2 are specified; later levels carry their
  * summary so the progression is visible and can be filled in as content grows.
  */
 
@@ -30,7 +30,17 @@ export const levels: LevelDefinition[] = [
     name: 'Elementary',
     summary:
       'Communicate in routine tasks needing a direct exchange of information on familiar topics; describe your background and immediate environment in simple terms.',
-    canDo: [],
+    canDo: [
+      { id: 'a2.past', skill: 'speaking', text: 'Say what I did last weekend, on holiday or at work, using the past tense.' },
+      { id: 'a2.background', skill: 'speaking', text: 'Describe my background, my childhood and how things used to be.' },
+      { id: 'a2.compare', skill: 'speaking', text: 'Compare people, places and things, and say which I prefer and why.' },
+      { id: 'a2.services', skill: 'interaction', text: 'Handle routine services: a doctor or pharmacy, a hotel or station problem, an appointment.' },
+      { id: 'a2.social', skill: 'interaction', text: 'Invite someone, accept or decline politely, and make arrangements to meet.' },
+      { id: 'a2.work', skill: 'interaction', text: 'Talk about my job, take a simple phone call and leave a message.' },
+      { id: 'a2.main', skill: 'listening', text: 'Catch the main point of short, clear messages, announcements and conversations at near-normal speed.' },
+      { id: 'a2.read', skill: 'reading', text: 'Find specific information in everyday texts such as adverts, timetables, notices and short e-mails.' },
+      { id: 'a2.write', skill: 'writing', text: 'Write a short e-mail or message about an event, a plan or a thank-you, linking ideas with et, mais and parce que.' },
+    ],
   },
   {
     id: 'B1',

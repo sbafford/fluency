@@ -21,8 +21,16 @@ import { checkPcm, encodeMp3, parseWav, trim, type Pcm } from './audio-check'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const ENDPOINT = process.env.TTS_ENDPOINT ?? 'https://texttospeech.googleapis.com'
-const mode = process.argv.includes('--samples') ? 'samples' : process.argv.includes('--check') ? 'check' : 'record'
+const mode = process.argv.includes('--samples') ? 'samples' : process.argv.includes('--check') ? 'check' : process.argv.includes('--try') ? 'try' : 'record'
 const SAMPLE = "Bonjour ! Je m'appelle Sarah. Je voudrais un café, s'il vous plaît. Il fait beau à Lyon aujourd'hui, non ?"
+
+/** Your name as set in the app, so lines like "Je m'appelle Sav." can be recorded too. LEARNER_NAME=Sav in .env.local (several: Sav,Savannah). */
+function learnerNames(): string[] {
+  let raw = process.env.LEARNER_NAME ?? ''
+  const file = join(ROOT, '.env.local')
+  if (!raw && existsSync(file)) raw = readFileSync(file, 'utf8').split('\n').find((l) => l.trim().startsWith('LEARNER_NAME='))?.split('=')[1] ?? ''
+  return raw.split(',').map((n) => n.trim().replace(/^["']|["']$/g, '')).filter(Boolean)
+}
 
 function apiKey(): string {
   if (process.env.GOOGLE_TTS_KEY) return process.env.GOOGLE_TTS_KEY.trim()
@@ -62,12 +70,12 @@ async function call(path: string, key: string, body?: unknown): Promise<any> {
   }
 }
 
-async function synthesise(key: string, voice: string, text: string): Promise<Pcm> {
+async function synthesise(key: string, voice: string, text: string, speakingRate?: number): Promise<Pcm> {
   const languageCode = voice.split('-').slice(0, 2).join('-')
   const json = await call('/v1/text:synthesize', key, {
     input: { text },
     voice: { languageCode, name: voice },
-    audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: 24000 },
+    audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: 24000, ...(speakingRate ? { speakingRate } : {}) },
   })
   return parseWav(Buffer.from(json.audioContent, 'base64'))
 }
@@ -85,6 +93,18 @@ async function recordChecked(key: string, voice: string, text: string): Promise<
     if (checkPcm(pcm).ok) return encodeMp3(trim(pcm))
   }
   return undefined
+}
+
+/**
+ * What is actually sent to the voice. A bare fragment such as "tu es" gets
+ * read casually (as "t'es"), so lines without closing punctuation are sent
+ * as a short sentence: "Tu es." The text shown in the app is unchanged.
+ * Per-line fixes live in narration.spoken.
+ */
+function spokenFor(text: string, overrides: Record<string, string> = {}): string {
+  if (overrides[text]) return overrides[text]
+  if (/[.!?…]$/.test(text)) return text
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`
 }
 
 const fileFor = (voice: string, text: string) => createHash('sha1').update(`${voice}|${text}`).digest('hex').slice(0, 16) + '.mp3'
@@ -124,13 +144,15 @@ async function record(dryRun: boolean) {
     if (!pack.narration) continue
     const dir = join(ROOT, 'public', 'audio', pack.id)
     mkdirSync(dir, { recursive: true })
-    const plan = narrationPlan(pack).map((l) => ({ ...l, voice: pack.narration!.voices[l.role] }))
+    const names = learnerNames()
+    if (!names.length) console.log('Tip: add LEARNER_NAME=YourName to .env.local to record the lines that say your name.')
+    const plan = narrationPlan(pack, names).map((l) => ({ ...l, voice: pack.narration!.voices[l.role], spoken: spokenFor(l.text, pack.narration!.spoken) }))
     // Clips recorded before checking existed are recorded again once, checked and trimmed.
     const manifestPath = join(dir, 'manifest.json')
     const previous: Manifest | undefined = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : undefined
     const checked = new Set(previous?.checked ?? [])
     const todo = plan.filter((l) => {
-      const file = fileFor(l.voice, l.text)
+      const file = fileFor(l.voice, l.spoken)
       return !existsSync(join(dir, file)) || !checked.has(file)
     })
     const chars = todo.reduce((n, l) => n + l.text.length, 0)
@@ -149,8 +171,8 @@ async function record(dryRun: boolean) {
     const failed: string[] = []
     await inBatches(todo, 4, async (l) => {
       try {
-        const file = fileFor(l.voice, l.text)
-        const mp3 = await recordChecked(key, l.voice, l.text)
+        const file = fileFor(l.voice, l.spoken)
+        const mp3 = await recordChecked(key, l.voice, l.spoken)
         if (mp3) {
           writeFileSync(join(dir, file), mp3)
           checked.add(file)
@@ -170,7 +192,7 @@ async function record(dryRun: boolean) {
     const manifest: Manifest = { voices: pack.narration.voices, clips: {}, checked: [] }
     const keep = new Set<string>()
     for (const l of plan) {
-      const file = fileFor(l.voice, l.text)
+      const file = fileFor(l.voice, l.spoken)
       if (existsSync(join(dir, file))) {
         manifest.clips[clipKey(l.role, l.text)] = file
         keep.add(file)
@@ -186,7 +208,34 @@ async function record(dryRun: boolean) {
   if (dryRun) console.log(`\nTotal to record: ${total.toLocaleString()} characters. Google's free allowance for Chirp 3 HD voices is 1,000,000 a month.`)
 }
 
-const run = mode === 'samples' ? samples() : record(mode === 'check')
+/** Records one line several ways, to compare by ear: npm run audio:try -- "tu es" */
+async function tryLine() {
+  const text = process.argv[process.argv.indexOf('--try') + 1]
+  if (!text || text.startsWith('--')) throw new Error('Give the line to try, e.g. npm run audio:try -- "tu es"')
+  const key = apiKey()
+  const pack = Object.values(languages).find((p) => p.narration)!
+  const voice = pack.narration!.voices[pack.narration!.narrator]
+  const out = join(ROOT, 'audio-samples', 'try')
+  mkdirSync(out, { recursive: true })
+  const slug = text.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').toLowerCase()
+  const variants: [string, string, number?][] = [
+    ['1 as written', text],
+    ['2 as a sentence', spokenFor(text, pack.narration!.spoken)],
+    ['3 as a sentence, slower', spokenFor(text, pack.narration!.spoken), 0.85],
+  ]
+  for (const [label, t, rate] of variants) {
+    try {
+      const pcm = await synthesise(key, voice, t, rate)
+      writeFileSync(join(out, `${slug} - ${label}.mp3`), encodeMp3(trim(pcm)))
+      console.log(`  ${label}: "${t}"`)
+    } catch (e) {
+      console.log(`  ${label}: skipped (${(e as Error).message})`)
+    }
+  }
+  console.log(`\nListen in audio-samples/try. If one is wrong, add a fix to "spoken" in src/content/fr/narration.ts.`)
+}
+
+const run = mode === 'samples' ? samples() : mode === 'try' ? tryLine() : record(mode === 'check')
 run.catch((e) => {
   console.error('\n' + (e as Error).message)
   process.exit(1)

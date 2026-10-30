@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Learn } from './screens/Learn'
+import { Phrasebook } from './screens/Phrasebook'
 import { LessonScreen } from './screens/LessonScreen'
 import { ListeningScreen } from './screens/ListeningScreen'
 import { Practise } from './screens/Practise'
@@ -44,6 +45,7 @@ export default function App() {
     <Shell route={route}>
       {route.name === 'today' && <Today />}
       {route.name === 'learn' && <Learn />}
+      {route.name === 'phrasebook' && <Phrasebook unit={route.unit} />}
       {route.name === 'practise' && <Practise />}
       {route.name === 'progress' && <Progress />}
       {route.name === 'settings' && <Settings />}

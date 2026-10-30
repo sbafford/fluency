@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { accentFor, findAccentSlip } from '../engine/accents'
 import { normalise } from '../engine/answers'
 import { recordAnswer } from '../engine/progress'
 import { indexPack, isScored, shuffle } from '../engine/session'
@@ -24,7 +25,7 @@ import {
   type Verdict,
 } from './exercises'
 import { FeedbackSheet, FocusFrame, type SheetTone } from './Focus'
-import { Pill } from './kit'
+import { Pill, Rich } from './kit'
 
 /*
  * Runs a sequence of exercises: lessons, revision and unit checks all use it.
@@ -47,6 +48,17 @@ interface QueueEntry {
 function withShuffledOptions(e: Exercise): Exercise {
   if (e.type === 'choose' || e.type === 'listen-choose' || e.type === 'gap') return { ...e, options: shuffle(e.options) }
   return e
+}
+
+/** How to describe the learner's own answer, by exercise type. Speaking is described by the exercise itself. */
+const YOUR_ANSWER: Partial<Record<Exercise['type'], string>> = {
+  type: 'You wrote',
+  dictation: 'You wrote',
+  respond: 'You wrote',
+  choose: 'You chose',
+  'listen-choose': 'You chose',
+  gap: 'You chose',
+  build: 'You built',
 }
 
 const WRONG_LABEL: Partial<Record<ErrorType, string>> = {
@@ -87,6 +99,8 @@ export function Player({
   })
   const [pos, setPos] = useState(saved?.pos ?? 0)
   const [verdict, setVerdict] = useState<Verdict>()
+  /** Fixing a wrong answer straight away: practice only, not scored or scheduled. */
+  const [fixing, setFixing] = useState<{ attempt: number; correct?: string } | null>(null)
   const [change, setChange] = useState<{ from: string; to: string; days: number }>()
   const [results, setResults] = useState<Record<string, Verdict>>(() =>
     Object.fromEntries(Object.entries(saved?.results ?? {}).map(([id, result]) => [id, { result, skill: 'recall' } as Verdict])),
@@ -116,6 +130,7 @@ export function Player({
   const next = useCallback(() => {
     setVerdict(undefined)
     setChange(undefined)
+    setFixing(null)
     if (pos + 1 >= queue.length) finish()
     else setPos(pos + 1)
   }, [pos, queue.length, finish])
@@ -140,6 +155,11 @@ export function Player({
   const onAnswer = (v: Verdict) => {
     if (!entry || verdict) return
     const e = entry.exercise
+    // A correction attempt is practice: it is shown but not recorded, so it can't inflate how well the word is known.
+    if (fixing) {
+      setVerdict(v)
+      return
+    }
     if (review && e.itemIds.length) {
       const id = e.itemIds[0]
       const now = Date.now()
@@ -165,7 +185,7 @@ export function Player({
 
   if (!entry) return null
   const e = entry.exercise
-  const key = `${e.id}-${pos}`
+  const key = `${e.id}-${pos}-${fixing?.attempt ?? 0}`
   const props = { onAnswer, verdict }
 
   let body: React.ReactNode
@@ -205,8 +225,35 @@ export function Player({
       break
   }
 
+  // After a wrong answer, have another go straight away while the right answer is fresh.
+  const canFix = (v: Verdict) => v.result === 'wrong' && !v.selfAssessed && e.type !== 'speak'
+  const fixNow = () => {
+    // Remind of the answer you have to give: the option to pick, or the French to write.
+    const correct = 'answer' in e && typeof e.answer === 'string' ? e.answer : verdict?.expected
+    setFixing((f) => ({ attempt: (f?.attempt ?? 0) + 1, correct: f?.correct ?? correct }))
+    setVerdict(undefined)
+    setChange(undefined)
+  }
+
   let sheet: React.ReactNode
-  if (verdict && SKILL_OF[e.type]) {
+  if (verdict && SKILL_OF[e.type] && fixing) {
+    const fixed = verdict.result !== 'wrong'
+    sheet = (
+      <FeedbackSheet
+        tone={fixed ? 'correct' : 'wrong'}
+        title={fixed ? 'Voilà !' : 'Pas encore'}
+        label={fixed ? 'Fixed · Still Comes Back Later' : undefined}
+        answer={verdict.expected}
+        answerIsFrench={verdict.expectedIsFrench}
+        onPlay={verdict.expected && verdict.expectedIsFrench ? () => speaker.speak(verdict.expected!) : undefined}
+        onContinue={next}
+        continueLabel="Continue"
+        secondary={!fixed && fixing.attempt < 2 ? { label: 'Try Again', onClick: fixNow } : undefined}
+      >
+        {!fixed && <p className="m-0">Read it once more, out loud if you can. It comes back at the end of the session.</p>}
+      </FeedbackSheet>
+    )
+  } else if (verdict && SKILL_OF[e.type]) {
     const v = verdict
     const tone: SheetTone = v.result === 'correct' ? 'correct' : v.result === 'near' ? 'nearly' : 'wrong'
     let title = { correct: review ? 'Oui !' : 'Très bien !', nearly: 'Presque !', wrong: 'Pas tout à fait' }[tone]
@@ -222,11 +269,22 @@ export function Player({
 
     const notes: string[] = []
     if (v.detail) notes.push(v.detail)
-    if (tone === 'correct' && v.given && v.expected && v.expectedIsFrench && normalise(v.given) !== normalise(v.expected) && e.type !== 'choose' && e.type !== 'gap')
-      notes.push(`You wrote: ${v.given}`)
-    if (itemNote) notes.push(itemNote)
+    // Say what you actually did: typed, picked or built. Repeating a correct pick adds nothing.
+    const verb = YOUR_ANSWER[e.type]
+    const differs = !!v.given && (!v.expected || normalise(v.given) !== normalise(v.expected))
+    // Why: what your choice actually means, then why the answer is right. Falls back to the word's general note.
+    const explain = pack.explanations?.[e.id]
+    const whyGiven = tone === 'wrong' && v.given ? explain?.why?.[v.given] : undefined
+    if (verb && v.given && (verb === 'You wrote' ? tone !== 'correct' || differs : tone === 'wrong'))
+      notes.push(whyGiven ? `${verb}: ${v.given}. ${whyGiven}` : `${verb}: ${v.given}`)
+    if (tone !== 'correct' && explain?.because) notes.push(explain.because)
+    // An accent slip: say what the accent does and how to tell when a word needs it.
+    const slip = tone !== 'correct' && v.given && v.expected && v.expectedIsFrench ? findAccentSlip(v.given, v.expected) : undefined
+    const guide = slip && pack.accents ? accentFor(slip, pack.accents) : undefined
+    if (slip && guide) notes.push(`*${guide.letter}* (*${guide.name}*) in *${slip.word}*: ${guide.sound} ${guide.guess}`)
+    else if (itemNote && !whyGiven) notes.push(itemNote)
     if (change && tone !== 'wrong' && change.days > 0) notes.push(`Next review in ${change.days} ${change.days === 1 ? 'day' : 'days'}.`)
-    if (tone === 'wrong' && !entry.retry) notes.push('This one comes back at the end of the session.')
+    if (tone === 'wrong') notes.push('Fix it now while it’s fresh. It comes back later too, to check it stuck.')
 
     sheet = (
       <FeedbackSheet
@@ -237,16 +295,32 @@ export function Player({
         answerIsFrench={v.expectedIsFrench}
         onPlay={v.expected && v.expectedIsFrench ? () => speaker.speak(v.expected!) : undefined}
         onFlag={v.expected ? () => flagAudio(v.expected!) : undefined}
-        onContinue={next}
+        onContinue={canFix(v) ? fixNow : next}
+        continueLabel={canFix(v) ? 'Fix It Now' : 'Continue'}
+        secondary={canFix(v) ? { label: 'Skip', onClick: next } : undefined}
       >
-        {notes.length > 0 && notes.map((n) => <p key={n} className="m-0">{n}</p>)}
+        {notes.length > 0 && notes.map((n) => (<p key={n} className="m-0"><Rich text={n} /></p>))}
       </FeedbackSheet>
     )
   }
 
   return (
     <FocusFrame kind={kind} title={title} count={`${pos + 1}/${queue.length}`} progress={pos / queue.length} closeHref={closeHref} bottom={sheet}>
-      {entry.retry && <div className="text-[14px] font-semibold text-accent">Once More, While It's Fresh</div>}
+      {fixing && !verdict && (
+        <div className="flex flex-col gap-1 rounded-2xl bg-wash px-4 py-3">
+          <span className="text-[14px] font-semibold text-accent">Your Turn to Fix It</span>
+          {fixing.correct && (
+            <span className="text-[14px] text-ink-2">
+              The answer was{' '}
+              <span className={e.type === 'choose' && e.promptLang === 'target' || e.type === 'listen-choose' ? 'font-semibold text-ink' : 'target text-[18px] text-ink'}>
+                {e.type === 'choose' && e.promptLang === 'target' || e.type === 'listen-choose' ? fixing.correct.charAt(0).toUpperCase() + fixing.correct.slice(1) : fixing.correct}
+              </span>
+              . Now give it yourself.
+            </span>
+          )}
+        </div>
+      )}
+      {entry.retry && !fixing && <div className="text-[14px] font-semibold text-accent">Back Again: Check It Stuck</div>}
       {reviewInfo && (
         <div className="flex items-center gap-2.5">
           <Pill tone={reviewInfo.status === 'struggling' ? 'shaky' : reviewInfo.status === 'mastered' ? 'sealed' : reviewInfo.status === 'learning' ? 'solid' : 'new'}>

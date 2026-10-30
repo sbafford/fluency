@@ -43,7 +43,8 @@ function Avatar({ big = false }: { big?: boolean }) {
 
 export function Shell({ route, children }: { route: Route; children: ReactNode }) {
   const { saveFailed } = useApp()
-  const active = route.name
+  // The phrasebook belongs to Learn.
+  const active = route.name === 'phrasebook' ? 'learn' : route.name
   return (
     <div className="flex min-h-dvh flex-col bg-paper text-ink">
       {/* Desktop header */}

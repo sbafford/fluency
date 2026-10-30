@@ -14,7 +14,8 @@
     "e2e": "node e2e/walkthrough.mjs",
     "audio": "tsx scripts/record-audio.ts",
     "audio:check": "tsx scripts/record-audio.ts --check",
-    "audio:samples": "tsx scripts/record-audio.ts --samples"
+    "audio:samples": "tsx scripts/record-audio.ts --samples",
+    "audio:try": "tsx scripts/record-audio.ts --try"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

@@ -121,6 +121,8 @@ export function FeedbackSheet({
   onFlag,
   children,
   onContinue,
+  continueLabel = 'Continue',
+  secondary,
 }: {
   tone: SheetTone
   title: string
@@ -132,6 +134,10 @@ export function FeedbackSheet({
   onFlag?: () => void
   children?: ReactNode
   onContinue: () => void
+  /** Text of the main button. */
+  continueLabel?: string
+  /** A quieter second choice beside the main button, such as skipping a retry. */
+  secondary?: { label: string; onClick: () => void }
 }) {
   const [flagged, setFlagged] = useState(false)
   const colours = {
@@ -177,9 +183,16 @@ export function FeedbackSheet({
           </div>
         )}
         {children && <div className="max-w-[56ch] text-[15px] leading-[1.45]">{children}</div>}
-        <button type="button" onClick={onContinue} autoFocus className={`mt-1.5 rounded-full p-[18px] text-center text-[17px] font-bold ${button}`}>
-          Continue
-        </button>
+        <div className="mt-1.5 flex items-center gap-2">
+          {secondary && (
+            <button type="button" onClick={secondary.onClick} className="shrink-0 px-[18px] py-4 text-[15px] whitespace-nowrap opacity-80 hover:opacity-100">
+              {secondary.label}
+            </button>
+          )}
+          <button type="button" onClick={onContinue} autoFocus className={`flex-1 rounded-full p-[18px] text-center text-[17px] font-bold ${button}`}>
+            {continueLabel}
+          </button>
+        </div>
       </div>
     </div>
   )

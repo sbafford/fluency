@@ -46,6 +46,14 @@ export function Practise() {
         </div>
       </section>
 
+      <a href={href({ name: 'phrasebook' })} className="flex items-center justify-between gap-4 border-b border-line pb-5 hover:text-accent">
+        <span className="flex flex-col gap-1">
+          <span className="text-[18px] font-semibold">Phrasebook</span>
+          <span className="text-[14px] text-ink-2">Every word and grammar note you've met, with audio. Shaky words gathered in one place.</span>
+        </span>
+        <span aria-hidden="true" className="text-[18px] text-accent">→</span>
+      </a>
+
       <div className="flex flex-wrap gap-x-14 gap-y-10">
         <section className="flex flex-[1_1_340px] flex-col">
           <SectionHead title="Listening" icon={<PlayIcon size={22} />} aside={`${heard} of ${pack.listening.length} Heard`} />

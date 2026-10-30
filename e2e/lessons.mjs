@@ -14,9 +14,9 @@ fs.mkdirSync(out, { recursive: true })
 const BASE = 'http://localhost:4173/'
 const problems = []
 
-// Everything before the first unit counts as finished, so its lessons are open.
+// Every unit up to the last counts as finished once, so all its lessons are open.
 const lessons = {}
-for (let u = 1; u <= 6; u++) for (const l of ['l1', 'l2', 'l3', 'l4', 'l5', 'check']) lessons[`fr.u${u}.${l}`] = { attempts: 1, completedAt: 1, bestScore: 1, lastScore: 1 }
+for (let u = 1; u <= Math.max(last, 6); u++) for (const l of ['l1', 'l2', 'l3', 'l4', 'l5', 'check']) lessons[`fr.u${u}.${l}`] = { attempts: 1, completedAt: 1, bestScore: 1, lastScore: 1 }
 const seed = {
   version: 2,
   deviceId: 'e2e',
@@ -60,6 +60,11 @@ async function play(id) {
     for (const b of await page.locator('button[aria-label^="Play"]:visible').all()) await b.click({ timeout: 1000 }).catch(() => {})
     if (n % 4 === 0) await page.screenshot({ path: `${out}/${id}-${String(n).padStart(2, '0')}.png` })
     n++
+    // A wrong answer offers Fix It Now or Skip; the scripts skip to keep the run short.
+    if (await vis('[role="status"] button:has-text("Skip")')) {
+      await page.locator('[role="status"] button:has-text("Skip")').click()
+      continue
+    }
     if (await vis('button:has-text("Continue")')) {
       await page.locator('button:has-text("Continue")').last().click()
       continue

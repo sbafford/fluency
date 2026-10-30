@@ -73,6 +73,11 @@ async function runLesson(lessonTitle, shots, { smart = true } = {}) {
     if (shots.has(n)) await page.screenshot({ path: `${out}/${lessonTitle}-${String(n).padStart(2, '0')}.png` })
     n++
     // Feedback sheet or unscored step.
+    // A wrong answer offers Fix It Now or Skip; the scripts skip to keep the run short.
+    if (await vis('[role="status"] button:has-text("Skip")')) {
+      await page.locator('[role="status"] button:has-text("Skip")').click()
+      continue
+    }
     if (await vis('button:has-text("Continue")')) {
       await page.locator('button:has-text("Continue")').last().click()
       continue
@@ -232,6 +237,7 @@ const runner = async () => {
     if (await page2.locator('text=/Lesson Complete/').count()) return guard
     const vis = async (sel) => (await page2.locator(sel).count()) > 0 && (await page2.locator(sel).first().isVisible())
     if (guard === 7 || guard === 12) await page2.screenshot({ path: `${out}/21-u2-step-${guard}.png` })
+    if (await vis('[role="status"] button:has-text("Skip")')) { await page2.locator('[role="status"] button:has-text("Skip")').click(); continue }
     if (await vis('button:has-text("Continue")')) { await page2.locator('button:has-text("Continue")').last().click(); continue }
     if (await vis('button:has-text("I Said It Comfortably")')) { await page2.click('button:has-text("I Said It Comfortably")'); continue }
     if (await vis('text=Build the Sentence')) {

@@ -25,7 +25,12 @@ export function Learn() {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-[18px]">
-        <PageTitle>Learn</PageTitle>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <PageTitle>Learn</PageTitle>
+          <a href={href({ name: 'phrasebook' })} className="rounded-full border border-line px-5 py-2.5 text-[15px] font-semibold hover:border-ink">
+            Phrasebook
+          </a>
+        </div>
         <div className="flex flex-wrap gap-2 text-[14px]" role="tablist" aria-label="Level">
           {pack.levels.map((l) => {
             const on = l.id === levelId
@@ -61,6 +66,11 @@ export function Learn() {
               <h2 className="target m-0 text-[40px] leading-none">{unit.title}</h2>
               <p className="m-0 text-[15px] leading-[1.45] text-ink-2">{unit.subtitle}</p>
               <span className="pt-1.5 text-[13px] text-ink-3">{status}</span>
+              {unit.lessons.some((l) => progress.lessons[l.id]?.completedAt || l.items.some((i) => progress.items[i.id])) && (
+                <a href={href({ name: 'phrasebook', unit: unit.id })} className="pt-1 text-[14px] font-semibold text-accent">
+                  Words and Notes →
+                </a>
+              )}
             </div>
             <ol className="m-0 flex flex-[2_1_420px] list-none flex-col p-0">
               {unit.lessons.map((lesson) => {
@@ -106,9 +116,7 @@ export function Learn() {
       <p className="m-0 max-w-[62ch] border-t border-line pt-7 text-[15px] leading-normal text-ink-2">
         {units.length === 0
           ? `Lessons for ${level.id} haven't been written yet. Finish ${pack.levels[pack.levels.indexOf(level) - 1]?.id ?? 'the level before'} first.`
-          : levelId === 'A1'
-            ? `Pass all ${units.length} unit checks to complete A1. A2 comes next.`
-            : ''}
+          : `Pass all ${units.length} unit checks to complete ${level.id}.${pack.levels[pack.levels.indexOf(level) + 1] ? ` ${pack.levels[pack.levels.indexOf(level) + 1].id} comes next.` : ''}`}
       </p>
     </div>
   )
